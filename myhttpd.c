@@ -15,91 +15,36 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <time.h>
+
 #include "threads.h"
 
 struct get_request {
 	char* name;
 };
 
-int validate (char *a){
-
-	for (unsigned int i = 0; i < strlen(a); i++){
-		if(!isdigit(a[i])){
-			return -1;
-		}
-	}
-	return 0;
-}
-
-char *inputStringFd(int fd, size_t size){
-	
-	//The size is extended by the input with the value of the provisional
-    char *str;
-    size_t len = 0;
-
-    str = realloc(NULL, sizeof(char)*size);//size is start size
-
-    //if realloc fails
-    if( !str )
-    	return str;
-
-    char ch;
-    do {
-		while (read(fd, &ch, 1) != 1);
-        str[len++] = ch;
-        if( len == size ){
-            str = realloc(str, sizeof(char)*(size+=16));
-            if( !str )
-            	return str;
-        }
-    } while (ch != '\n');
-    str[--len]='\0';
-    printf(">%s<\n", str);
-    return realloc(str, sizeof(char)*len);
-}
-
-char *inputString(FILE* fp, size_t size){
-	
-	//The size is extended by the input with the value of the provisional
-    char *str;
-    int ch;
-    size_t len = 0;
-
-    str = realloc(NULL, sizeof(char)*size);//size is start size
-
-    //if realloc fails
-    if( !str )
-    	return str;
-
-    while( EOF != ( ch = fgetc(fp) ) && ch != '\n' ){
-
-        str[len++] = ch;
-        if( len == size ){
-            str = realloc(str, sizeof(char)*(size+=16));
-            if( !str )
-            	return str;
-        }
-    }
-    str[len++]='\0';
-
-    return realloc(str, sizeof(char)*len);
-}
-
 int recv_get(int sock, struct get_request* request) {
+
+	//get until firts "enter"
 	char* line = inputStringFd(sock, 10);
-	if (line == NULL) return -1;
+	//if there is no string or there is no get value
+	if ( line == NULL ) return -1;
 	int length = strlen(line);
-	if (length <= strlen("GET  HTTP/1.1")) {
+	if ( length <= strlen("GET  HTTP/1.1") ) {
 		return -1;
 	}
+	//get from line the url name
 	line[length - 9] = '\0';
 	char* name = line+4;
+
+	//assign the url to the name field of request
 	request->name = malloc(sizeof(char)*(strlen(name)+1));
 	strcpy(request->name, name);
 	free(line);
 
-	for (int i = 0; i < 5; ++i)
-	{
+	//consume the rest of the lines
+	//potentially we add to the request structure all the other values of the given request
+	for (int i = 0; i < 5; ++i) {
 		line = inputStringFd(sock, 10);
 		free(line);
 	}
@@ -139,7 +84,7 @@ int main(int argc, char **argv){
 	int i;
 	for (i = 0; i < num_of_threads; ++i){
 		//The second argument specifies attributes. The fourth argument is used to pass arguments to thread.
-		printf("Creating thread\n");
+		//printf("Creating thread\n");
 		pthread_create(&(threads[i]), NULL, threadFun, NULL);
 	}
 
@@ -149,20 +94,24 @@ int main(int argc, char **argv){
 	server.sin_addr.s_addr = htonl(INADDR_ANY);
 	server.sin_port = htons(serving_port);
 
+	//create socket
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		perror("socket");
 		exit(EXIT_FAILURE);
 	}
+	//bind to the socket
 	if (bind(sock, (struct sockaddr*) &server, sizeof(server)) < 0) {
 		perror("bind");
 		exit(EXIT_FAILURE);
 	}
+	//listen to the socket
 	if (listen(sock, num_of_threads) < 0) {
 		perror("listen");
 		exit(EXIT_FAILURE);
 	}
 
+	//accept conection, create new socket
     struct sockaddr_in client;
     socklen_t clientlen;
 	int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
@@ -172,6 +121,7 @@ int main(int argc, char **argv){
 	}
 	printf("Accepted connection\n");
 
+	//read http request
 	struct get_request request;
 	if (recv_get(newsock, &request) != 0) {
 		perror("get");
@@ -179,10 +129,20 @@ int main(int argc, char **argv){
 	}
 	printf(">%s<\n", request.name);
 
+
+	//build of answer to client
+	time_t     now;
+	struct tm  ts;
+	char       timeBuffer[80];
+	time(&now);
+	ts = *localtime(&now);
+	strftime(timeBuffer, sizeof(timeBuffer), "%a, %d %b %Y %H:%M:%S %Z", &ts);
+	//printf("%s\n", timeBuffer);
+
 	char* status = "404 Not Found";
 	char* msg = "<html>Sorry dude, couldn’t find this file.</html>";
 	char* buf = malloc(10000);
-	sprintf(buf, "HTTP/1.1 %s\nDate: %s\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: %d\nContent-Type: text/html\nConnection: Closed\n\n", status, date, strlen(msg));
+	sprintf(buf, "HTTP/1.1 %s\nDate: %s\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: %d\nContent-Type: text/html\nConnection: Closed\n\n", status, timeBuffer, (int)strlen(msg));
 	if (socket_write(newsock, buf, strlen(buf)) < 0) {
 		perror("header");
 		exit(EXIT_FAILURE);
@@ -196,6 +156,7 @@ int main(int argc, char **argv){
 	free(request.name);
 
 	close(newsock);
+	close(sock);
 
 	//send stuff
 	do{

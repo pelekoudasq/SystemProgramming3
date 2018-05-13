@@ -17,42 +17,6 @@
 
 #include "threads.h"
 
-int validate (char *a){
-
-	for (unsigned int i = 0; i < strlen(a); i++){
-		if(!isdigit(a[i])){
-			return -1;
-		}
-	}
-	return 0;
-}
-
-char *inputString(FILE* fp, size_t size){
-	
-	//The size is extended by the input with the value of the provisional
-	char *str;
-	int ch;
-	size_t len = 0;
-
-	str = realloc(NULL, sizeof(char)*size);//size is start size
-
-    //if realloc fails
-    if( !str )
-    	return str;
-
-    while( EOF != ( ch = fgetc(fp) ) && ch != '\n' ){
-
-        str[len++] = ch;
-        if( len == size ){
-            str = realloc(str, sizeof(char)*(size+=16));
-            if( !str )
-            	return str;
-        }
-    }
-    str[len++]='\0';
-
-    return realloc(str, sizeof(char)*len);
-}
 
 int main(int argc, char **argv){
 
@@ -87,7 +51,7 @@ int main(int argc, char **argv){
 	int i;
 	for (i = 0; i < num_of_threads; ++i){
 		//The second argument specifies attributes. The fourth argument is used to pass arguments to thread.
-		printf("Creating thread\n");
+		//printf("Creating thread\n");
 		pthread_create(&(threads[i]), NULL, threadFun, NULL);
 	}
 
@@ -122,8 +86,10 @@ int main(int argc, char **argv){
 		perror("write");
 		exit(EXIT_FAILURE);
 	}
-	if (socket_read())
+	//if (socket_read(sock,))
 
+
+	close(sock);
 	//send stuff
 	do{
 	 	printf("Give command: ");
