@@ -2,8 +2,8 @@ CC		= gcc
 CFLAGS	= -g3 -Wall -pthread
 SERVER	= myhttpd
 CRAWLER	= mycrawler
-SOBJS	= myhttpd.o threads.o
-COBJS	= mycrawler.o threads.o
+SOBJS	= myhttpd.o serverThread.o auxFun.o
+COBJS	= mycrawler.o crawlThread.o auxFun.o
 
 .PHONY : all clean
 all: $(SERVER) $(CRAWLER)

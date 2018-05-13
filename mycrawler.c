@@ -15,7 +15,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "threads.h"
+#include "crawlThread.h"
+#include "auxFun.h"
 
 
 int main(int argc, char **argv){
@@ -86,7 +87,10 @@ int main(int argc, char **argv){
 		perror("write");
 		exit(EXIT_FAILURE);
 	}
-	//if (socket_read(sock,))
+	if (readAnswerFromServer(sock) < 0){
+		printf("Error reading answer\n");
+		exit(EXIT_FAILURE);
+	}
 
 
 	close(sock);

@@ -17,7 +17,8 @@
 
 #include <time.h>
 
-#include "threads.h"
+#include "serverThread.h"
+#include "auxFun.h"
 
 struct get_request {
 	char* name;
@@ -130,18 +131,19 @@ int main(int argc, char **argv){
 	printf(">%s<\n", request.name);
 
 
-	//build of answer to client
+	//build answer, send it to client
 	time_t     now;
 	struct tm  ts;
 	char       timeBuffer[80];
 	time(&now);
 	ts = *localtime(&now);
 	strftime(timeBuffer, sizeof(timeBuffer), "%a, %d %b %Y %H:%M:%S %Z", &ts);
-	//printf("%s\n", timeBuffer);
+	printf("%s\n", timeBuffer);
 
 	char* status = "404 Not Found";
 	char* msg = "<html>Sorry dude, couldn’t find this file.</html>";
 	char* buf = malloc(10000);
+	printf("%d\n", (int)strlen(msg));
 	sprintf(buf, "HTTP/1.1 %s\nDate: %s\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: %d\nContent-Type: text/html\nConnection: Closed\n\n", status, timeBuffer, (int)strlen(msg));
 	if (socket_write(newsock, buf, strlen(buf)) < 0) {
 		perror("header");
@@ -151,6 +153,7 @@ int main(int argc, char **argv){
 		perror("body");
 		exit(EXIT_FAILURE);
 	}
+	printf("Sending answer:\n%s%s\n", buf, msg);
 
 	free(buf);
 	free(request.name);
