@@ -130,8 +130,30 @@ int main(int argc, char **argv){
 	}
 	printf(">%s<\n", request.name);
 
-
 	//build answer, send it to client
+	char* status;
+	char* msg;
+
+	if ( access(request.name, F_OK) == -1 ){
+		status = "404 Not Found";
+		msg = "<html>Sorry dude, couldn’t find this file.</html>";
+	} else {
+		if ( access(request.name, R_OK) == -1 ){
+			status = "403 Forbidden";
+			msg = "<html>Trying to access this file but don’t think I can make it.</html>";
+		} else {
+			status = "200 OK";
+			long input_file_size;
+			FILE *input_file = fopen(request.name, "rb");
+			fseek(input_file, 0, SEEK_END);
+			input_file_size = ftell(input_file);
+			rewind(input_file);
+			msg = malloc(input_file_size * (sizeof(char)));
+			fread(msg, sizeof(char), input_file_size, input_file);
+			fclose(input_file);
+		}
+	}
+	
 	time_t     now;
 	struct tm  ts;
 	char       timeBuffer[80];
@@ -140,10 +162,8 @@ int main(int argc, char **argv){
 	strftime(timeBuffer, sizeof(timeBuffer), "%a, %d %b %Y %H:%M:%S %Z", &ts);
 	printf("%s\n", timeBuffer);
 
-	char* status = "404 Not Found";
-	char* msg = "<html>Sorry dude, couldn’t find this file.</html>";
+	
 	char* buf = malloc(10000);
-	printf("%d\n", (int)strlen(msg));
 	sprintf(buf, "HTTP/1.1 %s\nDate: %s\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: %d\nContent-Type: text/html\nConnection: Closed\n\n", status, timeBuffer, (int)strlen(msg));
 	if (socket_write(newsock, buf, strlen(buf)) < 0) {
 		perror("header");
@@ -153,7 +173,7 @@ int main(int argc, char **argv){
 		perror("body");
 		exit(EXIT_FAILURE);
 	}
-	printf("Sending answer:\n%s%s\n", buf, msg);
+	printf("Sending answer:\n%s\n", buf);
 
 	free(buf);
 	free(request.name);

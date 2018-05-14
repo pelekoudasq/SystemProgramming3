@@ -90,6 +90,7 @@ int socket_write(int sock, char* buf, int len) {
 int socket_read(int sock, char* buf, int len) {
     do {
         int count = read(sock, buf, len);
+        printf("count %d\n", count);
         if (count < 0)
             return count;
         len -= count;
@@ -113,7 +114,8 @@ int readAnswerFromServer(int sock){
     char *line = inputStringFd(sock, 15);
     if ( line == NULL ) return -1;
     int length = strlen(line);
-    if ( length <= strlen("HTTP/1.1 xxx xx") ) {
+    if ( length < strlen("HTTP/1.1 xxx xx") ) {
+        printf("error with length\n");
         return -1;
     }
     //get from line the url name
@@ -129,11 +131,12 @@ int readAnswerFromServer(int sock){
         int contentSize = atoi(lengthLine);
         printf("contentSize: %d\n", contentSize);
         consumeLines(sock, 3);
-        char *content = malloc(sizeof(char)*contentSize);
+        char *content = malloc(sizeof(char)*(contentSize+1));
         if (socket_read(sock, content, contentSize) < 0){
             printf("Error getting page\n");
             return -1;
         }
+        content[contentSize] = '\0';
         if (code == 404 || code == 403)
             printf("%s\n", content);
     } else {

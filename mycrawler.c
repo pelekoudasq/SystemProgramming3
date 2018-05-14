@@ -82,7 +82,7 @@ int main(int argc, char **argv){
     printf("Connecting to %s port %d\n", argv[1], port);
 
     //crawl
-    char msg[10000] = "GET /site0/page0_1244.html HTTP/1.1\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\nHost: www.tutorialspoint.com\nAccept-Language: en-us\nAccept-Encoding: gzip, deflate\nConnection: Keep-Alive\n";
+    char msg[10000] = "GET ./sites/site0/page0_16807.html HTTP/1.1\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\nHost: www.tutorialspoint.com\nAccept-Language: en-us\nAccept-Encoding: gzip, deflate\nConnection: Keep-Alive\n";
 	if (socket_write(sock, msg, strlen(msg)+1) < 0) {
 		perror("write");
 		exit(EXIT_FAILURE);
