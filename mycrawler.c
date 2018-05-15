@@ -96,7 +96,7 @@ int main(int argc, char **argv){
 		    printf("Give website: ");
 		    page = inputString(stdin, 10);
 
-		    sprintf(msg, "GET %s HTTP/1.1\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\nHost: www.tutorialspoint.com\nAccept-Language: en-us\nAccept-Encoding: gzip, deflate\nConnection: Keep-Alive\n", page);
+		    sprintf(msg, "GET %s HTTP/1.1\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\nHost: www.tutorialspoint.com\r\nAccept-Language: en-us\r\nAccept-Encoding: gzip, deflate\r\nConnection: Keep-Alive\r\n", page);
 			
 			if (socket_write(sock, msg, strlen(msg)+1) < 0) {
 				perror("write");

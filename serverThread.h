@@ -2,7 +2,7 @@
 #define _WEBTHREAD_
 
 
-void *threadFun(void *);
+void *serverThread(void *);
 
 
 #endif

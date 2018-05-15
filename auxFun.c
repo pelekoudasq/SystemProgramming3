@@ -42,8 +42,9 @@ char *inputStringFd(int fd, size_t size){
             if( !str )
             	return str;
         }
-    } while (ch != '\n');
-    str[--len]='\0';
+    } while (ch != '\r');
+    read(fd, &ch, 1);
+    str[len-1]='\0';
     printf(">%s<\n", str);
     return realloc(str, sizeof(char)*len);
 }
@@ -124,7 +125,7 @@ int readAnswerFromServer(int sock){
     int code = atoi(codeLetters);
     free(line);
     if (code == 404 || code == 403 || code == 200) {
-        printf("got 404 or 403 or 200\n");
+        printf("got %d\n", code);
         consumeLines(sock, 2);
         char *lengthLine = inputStringFd(sock, 10);
         lengthLine = lengthLine+16;
@@ -140,9 +141,11 @@ int readAnswerFromServer(int sock){
         if (code == 404 || code == 403)
             printf("%s\n", content);
         free(content);
+        free(lengthLine-16);
     } else {
         printf("wrong code\n");
         return -1;
     }
     return 0;
 }
+

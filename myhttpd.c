@@ -19,38 +19,15 @@
 
 #include "serverThread.h"
 #include "auxFun.h"
+#include "queue.h"
 
-struct get_request {
-	char* name;
-};
+//queue init
+Queue socketQueue;
 
-int recv_get(int sock, struct get_request* request) {
 
-	//get until firts "enter"
-	char* line = inputStringFd(sock, 10);
-	//if there is no string or there is no get value
-	if ( line == NULL ) return -1;
-	int length = strlen(line);
-	if ( length <= strlen("GET  HTTP/1.1") ) {
-		return -1;
-	}
-	//get from line the url name
-	line[length - 9] = '\0';
-	char* name = line+4;
+//mutex init
+pthread_mutex_t queueLock = PTHREAD_MUTEX_INITIALIZER;
 
-	//assign the url to the name field of request
-	request->name = malloc(sizeof(char)*(strlen(name)+1));
-	strcpy(request->name, name);
-	free(line);
-
-	//consume the rest of the lines
-	//potentially we add to the request structure all the other values of the given request
-	for (int i = 0; i < 5; ++i) {
-		line = inputStringFd(sock, 10);
-		free(line);
-	}
-	return 0;
-}
 
 int main(int argc, char **argv){
 
@@ -79,17 +56,6 @@ int main(int argc, char **argv){
 
 	printf("%d %d %d Docfile name: %s.\n", serving_port, command_port, num_of_threads, root_dir);
 
-	//create threads
-	pthread_t threads[num_of_threads];
-
-	int i;
-	for (i = 0; i < num_of_threads; ++i){
-		//The second argument specifies attributes. The fourth argument is used to pass arguments to thread.
-		//printf("Creating thread\n");
-		pthread_create(&(threads[i]), NULL, threadFun, NULL);
-	}
-
-
 	struct sockaddr_in server;
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -112,95 +78,52 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 
+	Queue_create(&socketQueue, num_of_threads);
+
+	//create threads
+	pthread_t threads[num_of_threads];
+
+	int i;
+	for (i = 0; i < num_of_threads; ++i){
+		//The second argument specifies attributes. The fourth argument is used to pass arguments to thread.
+		pthread_create(&(threads[i]), NULL, serverThread, NULL);
+	}
+	
 	//accept conection, create new socket
-    struct sockaddr_in client;
-    socklen_t clientlen;
+	struct sockaddr_in client;
+	socklen_t clientlen;
 
-    while(1){
-    	
-    	int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
-    	if (newsock < 0) {
-    		perror("accept");
-    		exit(EXIT_FAILURE);
-    	}
-    	printf("Accepted connection\n");
-    
-    	//read http request
-    	struct get_request request;
-    	if (recv_get(newsock, &request) != 0) {
-    		perror("get");
-    		exit(EXIT_FAILURE);
-    	}
-    	printf(">%s<\n", request.name);
-    
-    	//build answer, send it to client
-    	char* status = malloc(sizeof(char)*15);
-    	char* msg = NULL;
-    
-    	if ( access(request.name, F_OK) == -1 ){
-    		msg = malloc(sizeof(char)*50);
-    		strcpy(status, "404 Not Found");
-    		strcpy(msg, "<html>Sorry dude, couldn’t find this file.</html>");
-    	} else {
-    		if ( access(request.name, R_OK) == -1 ){
-    			msg = malloc(sizeof(char)*71);
-    			strcpy(status, "403 Forbidden");
-    			strcpy(msg, "<html>Trying to access this file but don’t think I can make it.</html>");
-    		} else {
-    			FILE *input_file = fopen(request.name, "rb");
-    			if (input_file == NULL) {
-    				msg = malloc(sizeof(char)*50);
-		    		strcpy(status, "404 Not Found");
-		    		strcpy(msg, "<html>Sorry dude, couldn’t find this file.</html>");
-    			} else {
-	    			fseek(input_file, 0, SEEK_END);
-	    			long input_file_size = ftell(input_file);
-	    			rewind(input_file);
-	    			msg = malloc(input_file_size * (sizeof(char)));
-	    			fread(msg, sizeof(char), input_file_size, input_file);
-	    			fclose(input_file);
-	    			strcpy(status, "200 OK");
-	    		}
-    		}
-    	}
-    	
-    	time_t     now;
-    	struct tm  ts;
-    	char       timeBuffer[80];
-    	time(&now);
-    	ts = *localtime(&now);
-    	strftime(timeBuffer, sizeof(timeBuffer), "%a, %d %b %Y %H:%M:%S %Z", &ts);
-    	printf("%s\n", timeBuffer);
-    
-    	
-    	char* buf = malloc(sizeof(char)*10000);
-    	perror("");
-    	sprintf(buf, "HTTP/1.1 %s\nDate: %s\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: %d\nContent-Type: text/html\nConnection: Closed\n\n", status, timeBuffer, (int)strlen(msg));
-    	perror("");
-    	if (socket_write(newsock, buf, strlen(buf)) < 0) {
-    		perror("header");
-    		exit(EXIT_FAILURE);
-    	}
-    	if (socket_write(newsock, msg, strlen(msg)) < 0) {
-    		perror("body");
-    		exit(EXIT_FAILURE);
-    	}
-    	printf("Sending answer:\n%s%s\n", buf, msg);
-    
-    	free(buf);
-    	free(msg);
-    	free(status);
-    	free(request.name);
-    
-    	close(newsock);
-    }
+	while(1){
 
-    close(sock);
+		int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
+		if (newsock < 0) {
+			perror("accept");
+			exit(EXIT_FAILURE);
+		}
+		printf("Accepted connection\n");
+
+		if (pthread_mutex_lock(&queueLock) < 0) { 
+			/* Lock mutex */
+			perror("lock");
+			exit(EXIT_FAILURE);
+		}
+		
+		Queue_push(&socketQueue, newsock);
+		printf("Pushing: %d\n", newsock);
+
+		if (pthread_mutex_unlock(&queueLock) < 0) {  
+			/* Unlock mutex */
+			perror("lock");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	close(sock);
 
 	//send stuff
 	do{
-	 	printf("Give command: ");
-	 	char* command = inputString(stdin, 10);
+		printf("Give command: ");
+		char* command = inputString(stdin, 10);
 		if ( strcmp(command, "STATS") == 0 ){
 			printf("command: STATS\n");
 		}
@@ -219,6 +142,6 @@ int main(int argc, char **argv){
 	//code
 	for (i = 0; i < num_of_threads; ++i){
 		printf("join\n");
-    	pthread_join(threads[i], NULL);
+		pthread_join(threads[i], NULL);
 	}
 }
