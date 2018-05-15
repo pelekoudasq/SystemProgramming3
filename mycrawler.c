@@ -57,43 +57,59 @@ int main(int argc, char **argv){
 	}
 
 
-	/* Create socket */
-	int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-		perror("socket");
-		exit(EXIT_FAILURE);
-    }
-	/* Find server address */
-	struct hostent *rem = gethostbyname(host);
-	if (rem == NULL) {	
-		herror("gethostbyname");
-		exit(EXIT_FAILURE);
-	}
+	
 
-    struct sockaddr_in server;
-    server.sin_family = AF_INET;       /* Internet domain */
-    memcpy(&server.sin_addr, rem->h_addr, rem->h_length);
-    server.sin_port = htons(port);         /* Server port */
-    /* Initiate connection */
-    if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
-		perror("connect");
-		exit(EXIT_FAILURE);
-    }
-    printf("Connecting to %s port %d\n", argv[1], port);
+   
+	
+	char *page = NULL;
+	do{
+		    /* Initiate connection */
+			if (page != NULL){
+				free(page);
+			}
+			/* Create socket */
+			int sock = socket(AF_INET, SOCK_STREAM, 0);
+		    if (sock < 0) {
+				perror("socket");
+				exit(EXIT_FAILURE);
+		    }
+			/* Find server address */
+			struct hostent *rem = gethostbyname(host);
+			if (rem == NULL) {	
+				herror("gethostbyname");
+				exit(EXIT_FAILURE);
+			}
 
-    //crawl
-    char msg[10000] = "GET ./sites/site0/page0_16807.html HTTP/1.1\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\nHost: www.tutorialspoint.com\nAccept-Language: en-us\nAccept-Encoding: gzip, deflate\nConnection: Keep-Alive\n";
-	if (socket_write(sock, msg, strlen(msg)+1) < 0) {
-		perror("write");
-		exit(EXIT_FAILURE);
-	}
-	if (readAnswerFromServer(sock) < 0){
-		printf("Error reading answer\n");
-		exit(EXIT_FAILURE);
-	}
+			struct sockaddr_in server;
+		    server.sin_family = AF_INET;       /* Internet domain */
+			memcpy(&server.sin_addr, rem->h_addr, rem->h_length);
+			server.sin_port = htons(port);         /* Server port */
 
+		    if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
+				perror("connect");
+				exit(EXIT_FAILURE);
+		    }
+		    printf("Connecting to %s port %d\n", argv[1], port);
+	
+		    //crawl
+		    char *msg = malloc(sizeof(char)*10000);
+		    printf("Give website: ");
+		    page = inputString(stdin, 10);
 
-	close(sock);
+		    sprintf(msg, "GET %s HTTP/1.1\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\nHost: www.tutorialspoint.com\nAccept-Language: en-us\nAccept-Encoding: gzip, deflate\nConnection: Keep-Alive\n", page);
+			
+			if (socket_write(sock, msg, strlen(msg)+1) < 0) {
+				perror("write");
+				exit(EXIT_FAILURE);
+			}
+			if (readAnswerFromServer(sock) < 0){
+				printf("Error reading answer\n");
+				exit(EXIT_FAILURE);
+			}
+			close(sock);
+
+	} while( strcmp(page, "exit") != 0);
+
 	//send stuff
 	do{
 	 	printf("Give command: ");

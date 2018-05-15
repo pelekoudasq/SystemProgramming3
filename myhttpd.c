@@ -115,71 +115,87 @@ int main(int argc, char **argv){
 	//accept conection, create new socket
     struct sockaddr_in client;
     socklen_t clientlen;
-	int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
-	if (newsock < 0) {
-		perror("accept");
-		exit(EXIT_FAILURE);
-	}
-	printf("Accepted connection\n");
 
-	//read http request
-	struct get_request request;
-	if (recv_get(newsock, &request) != 0) {
-		perror("get");
-		exit(EXIT_FAILURE);
-	}
-	printf(">%s<\n", request.name);
+    while(1){
+    	
+    	int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
+    	if (newsock < 0) {
+    		perror("accept");
+    		exit(EXIT_FAILURE);
+    	}
+    	printf("Accepted connection\n");
+    
+    	//read http request
+    	struct get_request request;
+    	if (recv_get(newsock, &request) != 0) {
+    		perror("get");
+    		exit(EXIT_FAILURE);
+    	}
+    	printf(">%s<\n", request.name);
+    
+    	//build answer, send it to client
+    	char* status = malloc(sizeof(char)*15);
+    	char* msg = NULL;
+    
+    	if ( access(request.name, F_OK) == -1 ){
+    		msg = malloc(sizeof(char)*50);
+    		strcpy(status, "404 Not Found");
+    		strcpy(msg, "<html>Sorry dude, couldn’t find this file.</html>");
+    	} else {
+    		if ( access(request.name, R_OK) == -1 ){
+    			msg = malloc(sizeof(char)*71);
+    			strcpy(status, "403 Forbidden");
+    			strcpy(msg, "<html>Trying to access this file but don’t think I can make it.</html>");
+    		} else {
+    			FILE *input_file = fopen(request.name, "rb");
+    			if (input_file == NULL) {
+    				msg = malloc(sizeof(char)*50);
+		    		strcpy(status, "404 Not Found");
+		    		strcpy(msg, "<html>Sorry dude, couldn’t find this file.</html>");
+    			} else {
+	    			fseek(input_file, 0, SEEK_END);
+	    			long input_file_size = ftell(input_file);
+	    			rewind(input_file);
+	    			msg = malloc(input_file_size * (sizeof(char)));
+	    			fread(msg, sizeof(char), input_file_size, input_file);
+	    			fclose(input_file);
+	    			strcpy(status, "200 OK");
+	    		}
+    		}
+    	}
+    	
+    	time_t     now;
+    	struct tm  ts;
+    	char       timeBuffer[80];
+    	time(&now);
+    	ts = *localtime(&now);
+    	strftime(timeBuffer, sizeof(timeBuffer), "%a, %d %b %Y %H:%M:%S %Z", &ts);
+    	printf("%s\n", timeBuffer);
+    
+    	
+    	char* buf = malloc(sizeof(char)*10000);
+    	perror("");
+    	sprintf(buf, "HTTP/1.1 %s\nDate: %s\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: %d\nContent-Type: text/html\nConnection: Closed\n\n", status, timeBuffer, (int)strlen(msg));
+    	perror("");
+    	if (socket_write(newsock, buf, strlen(buf)) < 0) {
+    		perror("header");
+    		exit(EXIT_FAILURE);
+    	}
+    	if (socket_write(newsock, msg, strlen(msg)) < 0) {
+    		perror("body");
+    		exit(EXIT_FAILURE);
+    	}
+    	printf("Sending answer:\n%s%s\n", buf, msg);
+    
+    	free(buf);
+    	free(msg);
+    	free(status);
+    	free(request.name);
+    
+    	close(newsock);
+    }
 
-	//build answer, send it to client
-	char* status;
-	char* msg;
-
-	if ( access(request.name, F_OK) == -1 ){
-		status = "404 Not Found";
-		msg = "<html>Sorry dude, couldn’t find this file.</html>";
-	} else {
-		if ( access(request.name, R_OK) == -1 ){
-			status = "403 Forbidden";
-			msg = "<html>Trying to access this file but don’t think I can make it.</html>";
-		} else {
-			status = "200 OK";
-			long input_file_size;
-			FILE *input_file = fopen(request.name, "rb");
-			fseek(input_file, 0, SEEK_END);
-			input_file_size = ftell(input_file);
-			rewind(input_file);
-			msg = malloc(input_file_size * (sizeof(char)));
-			fread(msg, sizeof(char), input_file_size, input_file);
-			fclose(input_file);
-		}
-	}
-	
-	time_t     now;
-	struct tm  ts;
-	char       timeBuffer[80];
-	time(&now);
-	ts = *localtime(&now);
-	strftime(timeBuffer, sizeof(timeBuffer), "%a, %d %b %Y %H:%M:%S %Z", &ts);
-	printf("%s\n", timeBuffer);
-
-	
-	char* buf = malloc(10000);
-	sprintf(buf, "HTTP/1.1 %s\nDate: %s\nServer: myhttpd/1.0.0 (Ubuntu64)\nContent-Length: %d\nContent-Type: text/html\nConnection: Closed\n\n", status, timeBuffer, (int)strlen(msg));
-	if (socket_write(newsock, buf, strlen(buf)) < 0) {
-		perror("header");
-		exit(EXIT_FAILURE);
-	}
-	if (socket_write(newsock, msg, strlen(msg)) < 0) {
-		perror("body");
-		exit(EXIT_FAILURE);
-	}
-	printf("Sending answer:\n%s\n", buf);
-
-	free(buf);
-	free(request.name);
-
-	close(newsock);
-	close(sock);
+    close(sock);
 
 	//send stuff
 	do{

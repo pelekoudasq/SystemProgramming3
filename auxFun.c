@@ -139,6 +139,7 @@ int readAnswerFromServer(int sock){
         content[contentSize] = '\0';
         if (code == 404 || code == 403)
             printf("%s\n", content);
+        free(content);
     } else {
         printf("wrong code\n");
         return -1;
