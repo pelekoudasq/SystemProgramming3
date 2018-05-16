@@ -125,12 +125,12 @@ int readAnswerFromServer(int sock){
     int code = atoi(codeLetters);
     free(line);
     if (code == 404 || code == 403 || code == 200) {
-        printf("got %d\n", code);
+        //printf("got %d\n", code);
         consumeLines(sock, 2);
         char *lengthLine = inputStringFd(sock, 10);
         lengthLine = lengthLine+16;
         int contentSize = atoi(lengthLine);
-        printf("contentSize: %d\n", contentSize);
+        //printf("contentSize: %d\n", contentSize);
         consumeLines(sock, 3);
         char *content = malloc(sizeof(char)*(contentSize+1));
         if (socket_read(sock, content, contentSize) < 0){
