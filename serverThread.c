@@ -74,7 +74,7 @@ void getRequest(int newsock){
 			status = "403 Forbidden";
 			strcpy(msg, "<html>Trying to access this file but don't think I can make it.</html>");
 		} else {
-			FILE *input_file = fopen(request.name, "rb");
+			FILE *input_file = fopen(request.name, "r+");
 			if (input_file == NULL) {
 				msg = malloc(sizeof(char)*50);
 				status = "404 Not Found";
@@ -102,9 +102,9 @@ void getRequest(int newsock){
 
 	
 	char* buf = malloc(sizeof(char)*10000);
-	perror("");
+
 	sprintf(buf, "HTTP/1.1 %s\r\nDate: %s\r\nServer: myhttpd/1.0.0 (Ubuntu64)\r\nContent-Length: %d\r\nContent-Type: text/html\r\nConnection: Closed\r\n\r\n", status, timeBuffer, (int)strlen(msg));
-	perror("");
+	
 	if (socket_write(newsock, buf, strlen(buf)) < 0) {
 		perror("header");
 		exit(EXIT_FAILURE);
@@ -113,7 +113,8 @@ void getRequest(int newsock){
 		perror("body");
 		exit(EXIT_FAILURE);
 	}
-	printf("Sending answer:\n%s%s\n", buf, msg);
+	sleep(0.1);
+	//printf("Sending answer:\n%s%s\n", buf, msg);
 
 	free(buf);
 	free(msg);

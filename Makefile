@@ -2,7 +2,7 @@ CC		= gcc
 CFLAGS	= -g3 -Wall -pthread
 SERVER	= myhttpd
 CRAWLER	= mycrawler
-SOBJS	= myhttpd.o serverThread.o auxFun.o queue.o
+SOBJS	= myhttpd.o serverThread.o auxFun.o queue.o server.o
 COBJS	= mycrawler.o crawlThread.o auxFun.o
 
 .PHONY : all clean

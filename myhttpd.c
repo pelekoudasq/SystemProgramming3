@@ -20,13 +20,14 @@
 #include "serverThread.h"
 #include "auxFun.h"
 #include "queue.h"
+#include "server.h"
 
 //queue init
 Queue socketQueue;
-
-
 //mutex init
 pthread_mutex_t queueLock = PTHREAD_MUTEX_INITIALIZER;
+//num_of_threads
+int num_of_threads;
 
 
 int main(int argc, char **argv){
@@ -51,97 +52,79 @@ int main(int argc, char **argv){
 
 	int serving_port = atoi(argv[2]);
 	int command_port = atoi(argv[4]);
-	int num_of_threads = atoi(argv[6]);
+	num_of_threads = atoi(argv[6]);
 	char* root_dir = argv[8];
 
 	printf("%d %d %d Docfile name: %s.\n", serving_port, command_port, num_of_threads, root_dir);
 
-	struct sockaddr_in server;
-	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = htonl(INADDR_ANY);
-	server.sin_port = htons(serving_port);
 
-	//create socket
-	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0) {
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-	//bind to the socket
-	if (bind(sock, (struct sockaddr*) &server, sizeof(server)) < 0) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
-	//listen to the socket
-	if (listen(sock, num_of_threads) < 0) {
-		perror("listen");
-		exit(EXIT_FAILURE);
+	//fork
+	int returnValue;
+
+	returnValue = fork();
+	if(returnValue == -1){
+		printf("fork failed\n");
+		return -13;
 	}
 
-	Queue_create(&socketQueue, num_of_threads);
-
-	//create threads
-	pthread_t threads[num_of_threads];
-
-	int i;
-	for (i = 0; i < num_of_threads; ++i){
-		//The second argument specifies attributes. The fourth argument is used to pass arguments to thread.
-		pthread_create(&(threads[i]), NULL, serverThread, NULL);
-	}
-	
-	//accept conection, create new socket
-	struct sockaddr_in client;
-	socklen_t clientlen;
-
-	while(1){
-
-		int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
-		if (newsock < 0) {
-			perror("accept");
-			exit(EXIT_FAILURE);
-		}
-		printf("Accepted connection\n");
-
-		if (pthread_mutex_lock(&queueLock) < 0) { 
-			/* Lock mutex */
-			perror("lock");
-			exit(EXIT_FAILURE);
-		}
+	if(returnValue == 0) {
+		//serving port
+		serverProc(serving_port);	
 		
-		Queue_push(&socketQueue, newsock);
-		printf("Pushing: %d\n", newsock);
+	}else{
+		//command port
+		struct sockaddr_in commandReceiver;
+		commandReceiver.sin_family = AF_INET;
+		commandReceiver.sin_addr.s_addr = htonl(INADDR_ANY);
+		commandReceiver.sin_port = htons(command_port);
 
-		if (pthread_mutex_unlock(&queueLock) < 0) {  
-			/* Unlock mutex */
-			perror("lock");
+		//create socket
+		int sock = socket(AF_INET, SOCK_STREAM, 0);
+		if (sock < 0) {
+			perror("socket");
 			exit(EXIT_FAILURE);
 		}
-	}
-
-	close(sock);
-
-	//send stuff
-	do{
-		printf("Give command: ");
-		char* command = inputString(stdin, 10);
-		if ( strcmp(command, "STATS") == 0 ){
-			printf("command: STATS\n");
+		//bind to the socket
+		if (bind(sock, (struct sockaddr*) &commandReceiver, sizeof(commandReceiver)) < 0) {
+			perror("bind");
+			exit(EXIT_FAILURE);
 		}
-		else if ( strcmp(command, "SHUTDOWN") == 0 ){
-			printf("command: SHUTDOWN\n");
+		//listen to the socket
+		if (listen(sock, 1) < 0) {
+			perror("listen");
+			exit(EXIT_FAILURE);
+		}
+
+		//accept conection, create new socket
+		struct sockaddr_in client;
+		socklen_t clientlen = sizeof(client);
+
+		while(1){
+
+			int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
+			if (newsock < 0) {
+				perror("accept");
+				exit(EXIT_FAILURE);
+			}
+			printf("Accepted connection\n");
+
+			char *command = inputStringFd(newsock, 10);
+			if ( strcmp(command, "STATS") == 0 ){
+				printf("command: STATS\n");
+			}
+			else if ( strcmp(command, "SHUTDOWN") == 0 ){
+				printf("command: SHUTDOWN\n");
+				free(command);
+				break;
+			}
+			else {
+				printf("command: SERVER\n");
+			}
 			free(command);
-			break;
 		}
-		else {
-			printf("command: SERVER\n");
-		}
-		free(command);
+		close(sock);
 	}
-	while(1);
 
-	//code
-	for (i = 0; i < num_of_threads; ++i){
-		printf("join\n");
-		pthread_join(threads[i], NULL);
-	}
+	
+	kill(returnValue, SIGTERM);
 }
