@@ -3,6 +3,6 @@
 
 
 void *threadFun(void *);
-
+void mkdirs(char *dir);
 
 #endif
