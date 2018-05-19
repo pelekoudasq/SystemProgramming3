@@ -54,7 +54,7 @@ int main(int argc, char **argv){
 	char *starting_URL = malloc(sizeof(char)*(strlen(argv[11])+1));
 	strcpy(starting_URL, argv[11]);
 
-	mkdirs(save_dir, 755);
+	mkdirs(save_dir);
 	mkdir(save_dir, 755);
 
 	list_add(&pagesToAdd, starting_URL);
