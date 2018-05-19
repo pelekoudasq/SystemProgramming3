@@ -129,11 +129,9 @@ int main(int argc, char **argv){
 			close(newsock);
 		}
 		close(sock);
-	}
 
-	
-	kill(returnValue, SIGTERM);
-	sleep(1);
-	munmap(socketQueue, sizeof (Queue));
-	//wait(NULL);
+		kill(returnValue, SIGTERM);
+		wait(NULL);
+		munmap(socketQueue, sizeof (Queue));
+	}
 }
