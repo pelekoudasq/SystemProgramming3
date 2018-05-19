@@ -48,6 +48,7 @@ void contentProcessing(char *content, char *fileName){
 	FILE *file = fopen(name, "w");
 	fprintf(file, "%s", content);
 	fclose(file);
+	free(name);
 
 	char *tok = strchr(content, '\n');
 	while (tok != NULL) {
@@ -62,7 +63,7 @@ void contentProcessing(char *content, char *fileName){
 			strncpy(link, start, len);
 			link[len] = '\0';
 			printf("%s %d\n", link, len);
-			if (list_check(pagesAdded, link))
+			if (list_check(pagesAdded, link) || list_check(pagesToAdd, link))
 				free(link);
 			else
 				list_add(&pagesToAdd, link);
@@ -73,7 +74,6 @@ void contentProcessing(char *content, char *fileName){
 }
 
 int readAnswerFromServer(int sock, char *fileName){
-
 	char *line = inputStringFd(sock, 15);
 	if ( line == NULL ) return -1;
 	int length = strlen(line);
