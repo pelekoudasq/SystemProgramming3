@@ -14,6 +14,4 @@ int socket_read(int sock, char* buf, int len);
 
 int consumeLines(int sock, int lines);
 
-int readAnswerFromServer(int sock);
-
 #endif

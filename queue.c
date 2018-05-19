@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "queue.h"
 
 
@@ -8,10 +9,29 @@ void Queue_create(Queue *oura, int size)
 	oura->embros = 0;
 	oura->piso = 0;
 	oura->size = size;
+	oura->pagesServed = 0;
+	oura->bytesReturned = 0;
 	oura->buffer = malloc(size * sizeof(QueueType));
 }
 
-void Queue_destroy(Queue *oura) {	
+void Queue_serve(Queue *oura) {
+	oura->pagesServed = oura->pagesServed + 1;
+}
+
+int Queue_getPages(Queue *oura) {
+	return oura->pagesServed;
+}
+
+void Queue_bytes(Queue *oura, int bytes) {
+	(oura->bytesReturned) = (oura->bytesReturned) + bytes;
+}
+
+int Queue_getBytes(Queue *oura) {
+	return oura->bytesReturned;
+}
+
+void Queue_destroy(Queue *oura) {
+	printf("DESTROY\n");
 	free(oura->buffer);
 }
 

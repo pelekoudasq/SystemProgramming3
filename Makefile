@@ -3,7 +3,7 @@ CFLAGS	= -g3 -Wall -pthread
 SERVER	= myhttpd
 CRAWLER	= mycrawler
 SOBJS	= myhttpd.o serverThread.o auxFun.o queue.o server.o
-COBJS	= mycrawler.o crawlThread.o auxFun.o
+COBJS	= mycrawler.o crawlThread.o auxFun.o list.o
 
 .PHONY : all clean
 all: $(SERVER) $(CRAWLER)
@@ -21,7 +21,7 @@ clean:
 	rm -f $(SOBJS) $(COBJS) $(SERVER) $(CRAWLER)
 
 server: $(SERVER)
-	./myhttpd -p 8001 -c 8002 -t 5 -d root_dir
+	./myhttpd -p 8001 -c 8002 -t 5 -d sites
 
 crawler: $(CRAWLER)
-	./mycrawler -h localhost -p 8001 -c 8003 -t 5 -d save_dir starting_URL
+	./mycrawler -h localhost -p 8001 -c 8003 -t 1 -d save_dir /site1/page1_14210.html

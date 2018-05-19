@@ -21,8 +21,11 @@
 #include "auxFun.h"
 #include "queue.h"
 
-extern Queue socketQueue;
-extern pthread_mutex_t queueLock;
+extern Queue *socketQueue;
+//mutex init
+pthread_mutex_t queueLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond_nonempty = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond_nonfull = PTHREAD_COND_INITIALIZER;
 extern int num_of_threads;
 
 int sock;
@@ -32,28 +35,34 @@ void sig_handler(int signo) {
 
 	if (signo == SIGTERM){
 		printf("--> received SIGTERM\n");
-		if (pthread_mutex_lock(&queueLock) < 0) { 
-			/* Lock mutex */
+		if (pthread_mutex_lock(&queueLock) < 0){
 			perror("lock");
 			exit(EXIT_FAILURE);
 		}
 
-		Queue_destroy(&socketQueue);
+		Queue_destroy(socketQueue);
 
-		if (pthread_mutex_unlock(&queueLock) < 0) {  
-			/* Unlock mutex */
+		if (pthread_mutex_unlock(&queueLock) < 0){
 			perror("lock");
 			exit(EXIT_FAILURE);
 		}
 
 		//join threads
 		for (int i = 0; i < num_of_threads; ++i){
-			printf("join\n");
-			pthread_join(threads[i], NULL);
+			if (pthread_cancel(threads[i]) != 0){
+				perror("cancel");
+			}
+			printf("cancel thread\n");
 		}
 
-		if (pthread_mutex_destroy(&queueLock) < 0) {  
-			/* Unlock mutex */
+		for (int i = 0; i < num_of_threads; ++i){
+			if (pthread_join(threads[i], NULL) != 0){
+				perror("join");
+			}
+			printf("join thread\n");
+		}
+
+		if (pthread_mutex_destroy(&queueLock) < 0){  
 			perror("destroy");
 			exit(EXIT_FAILURE);
 		}
@@ -65,6 +74,8 @@ void sig_handler(int signo) {
 }
 
 void serverProc(int serving_port){
+
+	Queue_create(socketQueue, num_of_threads);
 
 	struct sockaddr_in server;
 	server.sin_family = AF_INET;
@@ -88,8 +99,6 @@ void serverProc(int serving_port){
 		exit(EXIT_FAILURE);
 	}
 
-	Queue_create(&socketQueue, num_of_threads);
-
 	//create threads
 	threads = malloc(sizeof(pthread_t)*num_of_threads);
 	for (int i = 0; i < num_of_threads; ++i){
@@ -102,28 +111,32 @@ void serverProc(int serving_port){
 	socklen_t clientlen  = sizeof(client);
 
 	while(1){
+		
 		signal(SIGTERM, sig_handler);
 
 		int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
-		if (newsock < 0) {
+		if (newsock < 0){
 			perror("accept");
 			exit(EXIT_FAILURE);
 		}
 		printf("Accepted connection\n");
 
-		if (pthread_mutex_lock(&queueLock) < 0) { 
-			/* Lock mutex */
+		if (pthread_mutex_lock(&queueLock) < 0){
 			perror("lock");
 			exit(EXIT_FAILURE);
+		}
+		while (Queue_full(socketQueue) == 1){
+			printf(">> Found Buffer Full \n");
+			pthread_cond_wait(&cond_nonfull, &queueLock);
 		}
 		
-		Queue_push(&socketQueue, newsock);
+		Queue_push(socketQueue, newsock);
 		printf("Pushing: %d\n", newsock);
 
-		if (pthread_mutex_unlock(&queueLock) < 0) {  
-			/* Unlock mutex */
+		if (pthread_mutex_unlock(&queueLock) < 0){
 			perror("lock");
 			exit(EXIT_FAILURE);
 		}
+		pthread_cond_signal(&cond_nonempty);
 	}
 }

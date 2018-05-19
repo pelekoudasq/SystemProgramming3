@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 
 #include <time.h>
+#include <sys/mman.h>
 
 #include "serverThread.h"
 #include "auxFun.h"
@@ -23,11 +24,10 @@
 #include "server.h"
 
 //queue init
-Queue socketQueue;
-//mutex init
-pthread_mutex_t queueLock = PTHREAD_MUTEX_INITIALIZER;
+Queue *socketQueue;
 //num_of_threads
 int num_of_threads;
+char* root_dir;
 
 
 int main(int argc, char **argv){
@@ -53,10 +53,12 @@ int main(int argc, char **argv){
 	int serving_port = atoi(argv[2]);
 	int command_port = atoi(argv[4]);
 	num_of_threads = atoi(argv[6]);
-	char* root_dir = argv[8];
+	root_dir = argv[8];
 
 	printf("%d %d %d Docfile name: %s.\n", serving_port, command_port, num_of_threads, root_dir);
 
+	//shared memory
+	socketQueue = mmap(NULL, sizeof (Queue), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
 	//fork
 	int returnValue;
@@ -71,7 +73,7 @@ int main(int argc, char **argv){
 		//serving port
 		serverProc(serving_port);	
 		
-	}else{
+	} else{
 		//command port
 		struct sockaddr_in commandReceiver;
 		commandReceiver.sin_family = AF_INET;
@@ -110,21 +112,28 @@ int main(int argc, char **argv){
 
 			char *command = inputStringFd(newsock, 10);
 			if ( strcmp(command, "STATS") == 0 ){
-				printf("command: STATS\n");
+				char buf[73];
+				sprintf(buf, "Server up for %d, served %d pages, %d bytes.\n", 8, Queue_getPages(socketQueue), Queue_getBytes(socketQueue));
+				socket_write(newsock, buf, strlen(buf));
 			}
 			else if ( strcmp(command, "SHUTDOWN") == 0 ){
 				printf("command: SHUTDOWN\n");
 				free(command);
+				close(newsock);
 				break;
 			}
 			else {
-				printf("command: SERVER\n");
+				printf("command: wrong command\n");
 			}
 			free(command);
+			close(newsock);
 		}
 		close(sock);
 	}
 
 	
 	kill(returnValue, SIGTERM);
+	sleep(1);
+	munmap(socketQueue, sizeof (Queue));
+	//wait(NULL);
 }

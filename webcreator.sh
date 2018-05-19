@@ -46,11 +46,11 @@ for (( i = 0; i < $w; i++ )); do
 	echo "# Creating web site $i ..."
 	for (( j = 0; j < $p; j++ )); do
 		while : ; do
-			sites[$i,$j]=$root_directory/site$i/page${i}_$RANDOM.html
-			[[ -r ${sites[$i,$j]} ]] || break
+			sites[$i,$j]=/site$i/page${i}_$RANDOM.html
+			[[ -r $root_directory${sites[$i,$j]} ]] || break
 		done
 
-		touch ${sites[$i,$j]}
+		touch $root_directory${sites[$i,$j]}
 	done
 done
 
@@ -63,7 +63,7 @@ do
 
 	linkAfterLines=$(($m/($f+$q)))
 	echo "# Creating page ${sites[$key]} with $m lines starting at line $k ..."
-	cat > ${sites[$key]} << ASDF
+	cat > $root_directory${sites[$key]} << ASDF
 <!DOCTYPE html>
 <html>
 <body>
@@ -74,12 +74,12 @@ ASDF
 	IFS=$'\n'       # make newlines the only separator
 	for line in $lines
 	do
-		echo $line >> ${sites[$key]}
+		echo $line >> $root_directory${sites[$key]}
 		if [[ $count -eq $linkAfterLines ]]; then
 			if [[ $f -ne 0 ]] ; then
 				site=${sites[$i,$(($RANDOM%$p))]}
 				haslink[$site]=1
-				echo "<a href=../../$site>Internal link</a>" >> ${sites[$key]}
+				echo "<a href=\"$site\">Internal link</a>" >> $root_directory${sites[$key]}
 				echo "# Adding link to $site"
 				((f--))
 			else
@@ -89,7 +89,7 @@ ASDF
 				done
 				site=${sites[$j,$(($RANDOM%$p))]}
 				haslink[$site]=1
-				echo "<a href=../../$site>External link</a>" >> ${sites[$key]}
+				echo "<a href=\"$site\">External link</a>" >> $root_directory${sites[$key]}
 				echo "# Adding link to $site"
 			fi
 
@@ -99,7 +99,7 @@ ASDF
 	done
 
 
-	cat >> ${sites[$key]} << ASDF
+	cat >> $root_directory${sites[$key]} << ASDF
 </body>
 </html>
 ASDF

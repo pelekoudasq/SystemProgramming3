@@ -17,7 +17,14 @@
 
 #include "crawlThread.h"
 #include "auxFun.h"
+#include "list.h"
 
+list *pagesToAdd = NULL;
+list *pagesAdded = NULL;
+
+int port;
+char *host;
+char *save_dir;
 
 int main(int argc, char **argv){
 
@@ -39,12 +46,18 @@ int main(int argc, char **argv){
 		return -1;
 	}
 
-	char* host = argv[2];
-	int port = atoi(argv[4]);
+	host = argv[2];
+	port = atoi(argv[4]);
 	int command_port = atoi(argv[6]);
 	int num_of_threads = atoi(argv[8]);
-	char* save_dir = argv[10];
-	char* starting_URL = argv[11];
+	save_dir = argv[10];
+	char *starting_URL = malloc(sizeof(char)*(strlen(argv[11])+1));
+	strcpy(starting_URL, argv[11]);
+
+	mkdirs(save_dir, 755);
+	mkdir(save_dir, 755);
+
+	list_add(&pagesToAdd, starting_URL);
 
 	//create threads
 	pthread_t threads[num_of_threads];
@@ -52,63 +65,10 @@ int main(int argc, char **argv){
 	int i;
 	for (i = 0; i < num_of_threads; ++i){
 		//The second argument specifies attributes. The fourth argument is used to pass arguments to thread.
-		//printf("Creating thread\n");
 		pthread_create(&(threads[i]), NULL, threadFun, NULL);
 	}
 
-
-	
-
-   
-	
-	char *page = NULL;
-	do{
-		    /* Initiate connection */
-			if (page != NULL){
-				free(page);
-			}
-			/* Create socket */
-			int sock = socket(AF_INET, SOCK_STREAM, 0);
-		    if (sock < 0) {
-				perror("socket");
-				exit(EXIT_FAILURE);
-		    }
-			/* Find server address */
-			struct hostent *rem = gethostbyname(host);
-			if (rem == NULL) {	
-				herror("gethostbyname");
-				exit(EXIT_FAILURE);
-			}
-
-			struct sockaddr_in server;
-		    server.sin_family = AF_INET;       /* Internet domain */
-			memcpy(&server.sin_addr, rem->h_addr, rem->h_length);
-			server.sin_port = htons(port);         /* Server port */
-
-		    if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
-				perror("connect");
-				exit(EXIT_FAILURE);
-		    }
-		    printf("Connecting to %s port %d\n", argv[1], port);
-	
-		    //crawl
-		    char *msg = malloc(sizeof(char)*10000);
-		    printf("Give website: ");
-		    page = inputString(stdin, 10);
-
-		    sprintf(msg, "GET %s HTTP/1.1\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\nHost: www.tutorialspoint.com\r\nAccept-Language: en-us\r\nAccept-Encoding: gzip, deflate\r\nConnection: Keep-Alive\r\n", page);
-			
-			if (socket_write(sock, msg, strlen(msg)+1) < 0) {
-				perror("write");
-				exit(EXIT_FAILURE);
-			}
-			if (readAnswerFromServer(sock) < 0){
-				printf("Error reading answer\n");
-				exit(EXIT_FAILURE);
-			}
-			close(sock);
-
-	} while( strcmp(page, "exit") != 0);
+    //wait until list empty and threads all sleep
 
 	//send stuff
 	do{
@@ -134,4 +94,10 @@ int main(int argc, char **argv){
 		printf("join\n");
 		pthread_join(threads[i], NULL);
 	}
+
+	while (!list_empty(pagesToAdd))
+		free(list_rem(&pagesToAdd));
+
+	while (!list_empty(pagesAdded))
+		free(list_rem(&pagesAdded));
 }

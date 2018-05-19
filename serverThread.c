@@ -14,9 +14,16 @@
 #include "auxFun.h"
 #include "queue.h"
 
-extern Queue socketQueue;
+extern Queue *socketQueue;
+extern char* root_dir;
 
 extern pthread_mutex_t queueLock;
+extern pthread_cond_t cond_nonempty;
+extern pthread_cond_t cond_nonfull;
+
+void cleanUpFun(){
+	printf("CLEANUP\n");
+}
 
 struct get_request {
 	char* name;
@@ -37,8 +44,9 @@ int recv_get(int sock, struct get_request* request) {
 	char* name = line+4;
 
 	//assign the url to the name field of request
-	request->name = malloc(sizeof(char)*(strlen(name)+1));
-	strcpy(request->name, name);
+	request->name = malloc(sizeof(char)*(strlen(root_dir)+strlen(name)+1));
+	strcpy(request->name, root_dir);
+	strcat(request->name, name);
 	free(line);
 
 	//consume the rest of the lines
@@ -88,6 +96,16 @@ void getRequest(int newsock){
 				fclose(input_file);
 				msg[input_file_size]='\0';
 				status = "200 OK";
+				if (pthread_mutex_lock(&queueLock) < 0) { 
+					perror("lock add stats");
+					exit(EXIT_FAILURE);
+				}
+				Queue_serve(socketQueue);
+				Queue_bytes(socketQueue, input_file_size);
+				if (pthread_mutex_unlock(&queueLock) < 0) {
+					perror("unlock add stats");
+					exit(EXIT_FAILURE);
+				}
 			}
 		}
 	}
@@ -118,7 +136,6 @@ void getRequest(int newsock){
 
 	free(buf);
 	free(msg);
-	//free(status);
 	free(request.name);
 	close(newsock);
 }
@@ -126,34 +143,30 @@ void getRequest(int newsock){
 
 void *serverThread(void *arg){
 
+	//pthread_cleanup_push(&cleanUpFun, NULL);
 	//int threadId = pthread_self();
 	while(1){
+		
 		if (pthread_mutex_lock(&queueLock) < 0) { 
-			/* Lock mutex */
 			perror("lock");
 			exit(EXIT_FAILURE);
 		}
+
+		while (Queue_empty(socketQueue) == 1){
+			printf(">> Found Buffer Empty \n");
+			pthread_cond_wait(&cond_nonempty, &queueLock);
+		}
 		
 		int newsock;
-		if (Queue_pop(&socketQueue, &newsock) == 0){
-			
-			//printf("Empty Queue\n");
-			if (pthread_mutex_unlock(&queueLock) < 0) {
-				perror("lock");
-				exit(EXIT_FAILURE);
-			}
+		Queue_pop(socketQueue, &newsock);
+		printf("Poping: %d\n", newsock);
 
-		} else {
-			printf("Poping: %d\n", newsock);
-			if (pthread_mutex_unlock(&queueLock) < 0) {
-				perror("lock");
-				exit(EXIT_FAILURE);
-			}
-			getRequest(newsock);
+		if (pthread_mutex_unlock(&queueLock) < 0){
+			perror("lock");
+			exit(EXIT_FAILURE);
 		}
+		pthread_cond_signal(&cond_nonfull);
+		getRequest(newsock);
 	}
-
-	//printf("Thread number: %d\n", threadId);
 	pthread_exit(NULL);
 }
-
