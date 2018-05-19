@@ -55,12 +55,12 @@ void sig_handler(int signo) {
 			printf("cancel thread\n");
 		}
 
-		for (int i = 0; i < num_of_threads; ++i){
-			if (pthread_join(threads[i], NULL) != 0){
-				perror("join");
-			}
-			printf("join thread\n");
-		}
+		//for (int i = 0; i < num_of_threads; ++i){
+		//	if (pthread_join(threads[i], NULL) != 0){
+		//		perror("join");
+		//	}
+		//	printf("join thread\n");
+		//}
 
 		if (pthread_mutex_destroy(&queueLock) < 0){  
 			perror("destroy");
