@@ -62,10 +62,10 @@ void sig_handler(int signo) {
 		//	printf("join thread\n");
 		//}
 
-		if (pthread_mutex_destroy(&queueLock) < 0){  
+		/*if (pthread_mutex_destroy(&queueLock) < 0){  
 			perror("destroy");
 			exit(EXIT_FAILURE);
-		}
+		}*/
 		
 		close(sock);
 		//kill process

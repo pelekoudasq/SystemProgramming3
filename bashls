@@ -1,0 +1,7 @@
+#!/bin/bash
+rm pathsfile
+files=$( ls -1 $1 )
+IFS=$'\n'
+for file in $files; do
+	echo $1/$file >> pathsfile
+done

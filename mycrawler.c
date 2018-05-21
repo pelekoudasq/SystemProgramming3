@@ -21,13 +21,22 @@
 
 list *pagesToAdd = NULL;
 list *pagesAdded = NULL;
+pthread_mutex_t listToAddLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t statsLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond_listnonempty = PTHREAD_COND_INITIALIZER;
+int pagesDownloaded;
+int bytesDownloaded;
 
 int port;
 char *host;
 char *save_dir;
 
+int workers = 0;
+
 int main(int argc, char **argv){
 
+	clock_t start, end;
+	start = clock();
 
 	//twelve arguements, format: ./mycrawler -h host_or_IP -p port -c command_port -t num_of_threads -d save_dir starting_URL
 	if ( argc != 12 ){
@@ -68,31 +77,106 @@ int main(int argc, char **argv){
 		pthread_create(&(threads[i]), NULL, threadFun, NULL);
 	}
 
-    //wait until list empty and threads all sleep
+	//command port
+	struct sockaddr_in commandReceiver;
+	commandReceiver.sin_family = AF_INET;
+	commandReceiver.sin_addr.s_addr = htonl(INADDR_ANY);
+	commandReceiver.sin_port = htons(command_port);
 
-	//send stuff
-	do{
-	 	printf("Give command: ");
-		char *command = inputString(stdin, 10);
+	//create socket
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
+	//bind to the socket
+	if (bind(sock, (struct sockaddr*) &commandReceiver, sizeof(commandReceiver)) < 0) {
+		perror("bind");
+		exit(EXIT_FAILURE);
+	}
+	//listen to the socket
+	if (listen(sock, 1) < 0) {
+		perror("listen");
+		exit(EXIT_FAILURE);
+	}
+
+	//accept conection, create new socket
+	struct sockaddr_in client;
+	socklen_t clientlen = sizeof(client);
+
+	int ready = 0 ;
+
+	while(1){
+
+		int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
+		if (newsock < 0) {
+			perror("accept");
+			exit(EXIT_FAILURE);
+		}
+		printf("Accepted connection\n");
+
+		char *command = inputStringFd(newsock, 10);
 		if ( strcmp(command, "STATS") == 0 ){
-			printf("command: STATS\n");
+			end = clock();
+			char buf[73];
+			sprintf(buf, "Crawler up for %f, downloaded %d pages, %d bytes.\n", ((double) (end - start)) / CLOCKS_PER_SEC, pagesDownloaded, bytesDownloaded);
+			socket_write(newsock, buf, strlen(buf));
+		}
+		else if ( strncmp(command, "SEARCH ", 7) == 0 ){
+			printf("command: SEARCH\n");
+			
+			if( ready == 0 ){
+				if (pthread_mutex_lock(&listToAddLock) < 0){
+					perror("lock");
+					exit(EXIT_FAILURE);
+				}
+				if (workers == 0 && list_empty(pagesToAdd)){
+					ready++;
+					//create file
+					//printListToFile(pagesAdded, save_dir, "pathsfile");
+					int pid = fork();
+					if ( pid == 0 ){
+						execl("bashls", "bashls", save_dir, NULL);
+					}
+					wait(NULL);
+					int returnValue = fork();
+					if ( returnValue == 0 ){
+						execl("ergasia2/jobExecutor", "jobExecutor", "-d", "pathsfile", "-w", "5", NULL);
+					}
+				}
+				if (pthread_mutex_unlock(&listToAddLock) < 0){
+					perror("unlock");
+					exit(EXIT_FAILURE);
+				}
+			} 
+			if (ready){
+				//search(command+7);
+			} else {
+				socket_write(newsock, "Crawling in progress", strlen("Crawling in progress"));
+			}
+			
 		}
 		else if ( strcmp(command, "SHUTDOWN") == 0 ){
 			printf("command: SHUTDOWN\n");
 			free(command);
+			close(newsock);
 			break;
 		}
 		else {
-			printf("command: CRAWLER\n");
+			printf("command: wrong command\n");
 		}
 		free(command);
+		close(newsock);
 	}
-	while(1);
+	close(sock);
 
 	//code
-	for (i = 0; i < num_of_threads; ++i){
-		printf("join\n");
-		pthread_join(threads[i], NULL);
+	//join threads
+	for (int i = 0; i < num_of_threads; ++i){
+		if (pthread_cancel(threads[i]) != 0){
+			perror("cancel");
+		}
+		printf("cancel thread\n");
 	}
 
 	while (!list_empty(pagesToAdd))

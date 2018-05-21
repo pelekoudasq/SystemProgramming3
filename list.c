@@ -30,3 +30,12 @@ int list_check(list *l, char* newPage) {
 	}
 	return 0;
 }
+
+void printListToFile(list *l, char *save_dir, char *fileName){
+	FILE *file = fopen(fileName, "w");
+	while(l != NULL){
+		fprintf(file, "%s/%s\n", save_dir, l->page);
+		l = l->next;
+	}
+	fclose(file);
+}

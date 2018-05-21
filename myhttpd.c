@@ -32,7 +32,8 @@ char* root_dir;
 
 int main(int argc, char **argv){
 
-
+	clock_t start, end;
+	start = clock();
 	//nine arguements, format: ./myhttpd -p serving_port -c command_port -t num_of_threads -d root_dir
 	if ( argc != 9 ){
 		printf("Error. Arguement related error.\n");
@@ -112,8 +113,9 @@ int main(int argc, char **argv){
 
 			char *command = inputStringFd(newsock, 10);
 			if ( strcmp(command, "STATS") == 0 ){
+				end = clock();
 				char buf[73];
-				sprintf(buf, "Server up for %d, served %d pages, %d bytes.\n", 8, Queue_getPages(socketQueue), Queue_getBytes(socketQueue));
+				sprintf(buf, "Server up for %f, served %d pages, %d bytes.\n", ((double) (end - start)) / CLOCKS_PER_SEC, Queue_getPages(socketQueue), Queue_getBytes(socketQueue));
 				socket_write(newsock, buf, strlen(buf));
 			}
 			else if ( strcmp(command, "SHUTDOWN") == 0 ){
@@ -131,7 +133,7 @@ int main(int argc, char **argv){
 		close(sock);
 
 		kill(returnValue, SIGTERM);
-		wait(NULL);
+		wait(NULL);;
 		munmap(socketQueue, sizeof (Queue));
 	}
 }

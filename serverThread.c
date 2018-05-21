@@ -131,7 +131,7 @@ void getRequest(int newsock){
 		perror("body");
 		exit(EXIT_FAILURE);
 	}
-	sleep(0.1);
+	sleep(1);
 	//printf("Sending answer:\n%s%s\n", buf, msg);
 
 	free(buf);

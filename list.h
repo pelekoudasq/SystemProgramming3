@@ -10,5 +10,6 @@ void list_add(list **l, char *newPage);
 char *list_rem(list **l);
 int list_empty(list *l);
 int list_check(list *l, char* newPage);
+void printListToFile(list *l, char *save_dir, char *fileName);
 
 #endif

@@ -93,8 +93,10 @@ int socket_read(int sock, char* buf, int len) {
 	do {
 		int count = read(sock, buf, len);
 		printf("count %d\n", count);
-		if (count < 0)
+		if (count < 0) {
+			perror("");
 			return count;
+		}
 		len -= count;
 		buf += count;
 	} while (len > 0);

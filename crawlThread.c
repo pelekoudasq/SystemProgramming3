@@ -21,10 +21,17 @@
 
 extern list *pagesToAdd;
 extern list *pagesAdded;
+extern pthread_mutex_t listToAddLock;
+extern pthread_mutex_t statsLock;
+extern pthread_cond_t cond_listnonempty;
+extern int pagesDownloaded;
+extern int bytesDownloaded;
 
 extern int port;
 extern char *host;
 extern char *save_dir;
+
+extern int workers;
 
 void mkdirs(char *dir) {
 	char *p = NULL;
@@ -63,10 +70,20 @@ void contentProcessing(char *content, char *fileName){
 			strncpy(link, start, len);
 			link[len] = '\0';
 			printf("%s %d\n", link, len);
+			if (pthread_mutex_lock(&listToAddLock) < 0){
+				perror("lock");
+				exit(EXIT_FAILURE);
+			}
 			if (list_check(pagesAdded, link) || list_check(pagesToAdd, link))
 				free(link);
-			else
+			else{
 				list_add(&pagesToAdd, link);
+				pthread_cond_signal(&cond_listnonempty);
+			}
+			if (pthread_mutex_unlock(&listToAddLock) < 0){
+				perror("unlock");
+				exit(EXIT_FAILURE);
+			}
 		}
 		content = tok+1;
 		tok = strchr(content, '\n');
@@ -96,15 +113,25 @@ int readAnswerFromServer(int sock, char *fileName){
 		consumeLines(sock, 3);
 		char *content = malloc(sizeof(char)*(contentSize+1));
 		if (socket_read(sock, content, contentSize) < 0){
-			printf("Error getting page\n");
+			printf("Error getting page %d\n", contentSize);
 			return -1;
 		}
 		content[contentSize] = '\0';
-		if (code == 200)
+		if (code == 200){
+			if (pthread_mutex_lock(&statsLock) < 0){
+				perror("lock");
+				exit(EXIT_FAILURE);
+			}
+			pagesDownloaded++;
+			bytesDownloaded+=contentSize;
+			if (pthread_mutex_unlock(&statsLock) < 0){
+				perror("unlock");
+				exit(EXIT_FAILURE);
+			}
 			contentProcessing(content, fileName);
-		else {
-			printf("%s\n", content);
 		}
+		else 
+			printf("%s\n", content);
 		free(content);
 		free(lengthLine-16);
 	} else {
@@ -156,10 +183,34 @@ void get(char *page) {
 }
 
 void *threadFun(void *arg){
-	while (!list_empty(pagesToAdd)) {
+	
+	while (1){
+		//pagesToAdd list
+		if (pthread_mutex_lock(&listToAddLock) < 0){
+			perror("lock");
+			exit(EXIT_FAILURE);
+		}
+		while (list_empty(pagesToAdd)) {
+			printf(">> Found Buffer Empty \n");
+			pthread_cond_wait(&cond_listnonempty, &listToAddLock);
+		}
 		char *page=list_rem(&pagesToAdd);
 		list_add(&pagesAdded, page);
+		workers++;
+		if (pthread_mutex_unlock(&listToAddLock) < 0){
+			perror("unlock");
+			exit(EXIT_FAILURE);
+		}
 		get(page);
+		if (pthread_mutex_lock(&listToAddLock) < 0){
+			perror("lock");
+			exit(EXIT_FAILURE);
+		}
+		workers--;
+		if (pthread_mutex_unlock(&listToAddLock) < 0){
+			perror("unlock");
+			exit(EXIT_FAILURE);
+		}
 	}
 	pthread_exit(NULL);
 }
