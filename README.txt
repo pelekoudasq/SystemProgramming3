@@ -4,7 +4,9 @@ AM: 1115201500128
 System Programming
 Project 3
 
-Crawler -> Server: send one HTTP request hardcoded, server reads it
-Server -> Crawler: send one HTTP answer harcoded, crawler reads it
-
-no multi-threading
+a) Web Site Creator:
+   All working
+b) Web server:
+   All working, serving port/command port different processes
+c) Web crawler:
+   Crawling process works, no functional search from project 2
