@@ -20,7 +20,7 @@ clean:
 	rm -f $(SOBJS) $(COBJS) $(JOBJS) $(SERVER) $(CRAWLER) $(JOBEXE)
 
 server: $(SERVER)
-	./myhttpd -p 8001 -c 8002 -t 5 -d sites
+	./myhttpd -p 8041 -c 8042 -t 5 -d sites
 
 crawler: $(CRAWLER)
-	./mycrawler -h localhost -p 8001 -c 8003 -t 5 -d save_dir /site1/page1_14210.html
+	./mycrawler -h localhost -p 8041 -c 8043 -t 5 -d save_dir /site3/page3_10925.html

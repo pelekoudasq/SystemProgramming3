@@ -62,11 +62,12 @@ int recv_get(int sock, struct get_request* request) {
 void getRequest(int newsock){
 	//read http request
 	struct get_request request;
+	printf("Server: Getting request...\n");
 	if (recv_get(newsock, &request) != 0) {
 		perror("get");
 		exit(EXIT_FAILURE);
 	}
-	printf(">%s<\n", request.name);
+	printf("Requested page: %s\n", request.name);
 
 	//build answer, send it to client
 	char* status;
@@ -116,7 +117,7 @@ void getRequest(int newsock){
 	time(&now);
 	ts = *localtime(&now);
 	strftime(timeBuffer, sizeof(timeBuffer), "%a, %d %b %Y %H:%M:%S %Z", &ts);
-	printf("%s\n", timeBuffer);
+	//printf("%s\n", timeBuffer);
 
 	
 	char* buf = malloc(sizeof(char)*10000);
@@ -153,13 +154,13 @@ void *serverThread(void *arg){
 		}
 
 		while (Queue_empty(socketQueue) == 1){
-			printf(">> Found Buffer Empty \n");
+			//printf("Server: Found Buffer Empty \n");
 			pthread_cond_wait(&cond_nonempty, &queueLock);
 		}
 		
 		int newsock;
 		Queue_pop(socketQueue, &newsock);
-		printf("Poping: %d\n", newsock);
+		//printf("Poping: %d\n", newsock);
 
 		if (pthread_mutex_unlock(&queueLock) < 0){
 			perror("lock");

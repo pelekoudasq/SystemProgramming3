@@ -46,7 +46,7 @@ char *inputStringFd(int fd, size_t size){
 	if (ch == '\r')
 		read(fd, &ch, 1);
 	str[len-1]='\0';
-	printf(">%s<\n", str);
+	//printf(">%s<\n", str);
 	return realloc(str, sizeof(char)*len);
 }
 
@@ -92,7 +92,7 @@ int socket_write(int sock, char* buf, int len) {
 int socket_read(int sock, char* buf, int len) {
 	do {
 		int count = read(sock, buf, len);
-		printf("count %d\n", count);
+		//printf("byte count %d\n", count);
 		if (count < 0) {
 			perror("");
 			return count;

@@ -40,18 +40,18 @@ int main(int argc, char **argv){
 
 	//twelve arguements, format: ./mycrawler -h host_or_IP -p port -c command_port -t num_of_threads -d save_dir starting_URL
 	if ( argc != 12 ){
-		printf("Error. Arguement related error.\n");
+		printf("Crawler: Error. Arguement related error.\n");
 		return -1;
 	}
 
 	//arguements' check
 	if (strcmp(argv[1], "-h") != 0 || strcmp(argv[3], "-p") != 0 || strcmp(argv[5], "-c") != 0 || strcmp(argv[7], "-t") != 0 || strcmp(argv[9], "-d") != 0) {
-		printf("Error. Arguement related error.\n");
+		printf("Crawler: Error. Arguement related error.\n");
 		return -1;
 	}
 
 	if (validate(argv[4]) == -1 || validate(argv[6]) == -1 || validate(argv[8]) == -1) {
-		printf("Error. Arguement related error.\n");
+		printf("Crawler: Error. Arguement related error.\n");
 		return -1;
 	}
 
@@ -86,34 +86,43 @@ int main(int argc, char **argv){
 	//create socket
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
-		perror("socket");
+		perror("crawler socket");
 		exit(EXIT_FAILURE);
 	}
 	//bind to the socket
 	if (bind(sock, (struct sockaddr*) &commandReceiver, sizeof(commandReceiver)) < 0) {
-		perror("bind");
+		perror("crawler bind");
 		exit(EXIT_FAILURE);
 	}
 	//listen to the socket
 	if (listen(sock, 1) < 0) {
-		perror("listen");
+		perror("crawler listen");
 		exit(EXIT_FAILURE);
 	}
 
 	//accept conection, create new socket
-	struct sockaddr_in client;
-	socklen_t clientlen = sizeof(client);
+
+	int pfd[2];
+	if (pipe(pfd) == -1) {
+		perror("pipe");
+		exit(1);
+	}
+	int cfd[2];
+	if (pipe(cfd) == -1) {
+		perror("pipe");
+		exit(1);
+	}
 
 	int ready = 0 ;
 
 	while(1){
 
-		int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
+		int newsock = accept(sock, NULL, NULL);
 		if (newsock < 0) {
-			perror("accept");
+			perror("crawler accept");
 			exit(EXIT_FAILURE);
 		}
-		printf("Accepted connection\n");
+		fprintf(stderr, "Crawler: Accepted connection for command...\n");
 
 		char *command = inputStringFd(newsock, 10);
 		if ( strcmp(command, "STATS") == 0 ){
@@ -123,17 +132,15 @@ int main(int argc, char **argv){
 			socket_write(newsock, buf, strlen(buf));
 		}
 		else if ( strncmp(command, "SEARCH ", 7) == 0 ){
-			printf("command: SEARCH\n");
-			
+
 			if( ready == 0 ){
 				if (pthread_mutex_lock(&listToAddLock) < 0){
 					perror("lock");
 					exit(EXIT_FAILURE);
 				}
 				if (workers == 0 && list_empty(pagesToAdd)){
+					printf("Crawler: Crawling process finished.\n");
 					ready++;
-					//create file
-					//printListToFile(pagesAdded, save_dir, "pathsfile");
 					int pid = fork();
 					if ( pid == 0 ){
 						execl("bashls", "bashls", save_dir, NULL);
@@ -141,29 +148,45 @@ int main(int argc, char **argv){
 					wait(NULL);
 					int returnValue = fork();
 					if ( returnValue == 0 ){
+						dup2(pfd[1], STDOUT_FILENO);
+						close(pfd[1]);
+						dup2(cfd[0], STDIN_FILENO);
+						close(cfd[0]);
 						execl("ergasia2/jobExecutor", "jobExecutor", "-d", "pathsfile", "-w", "5", NULL);
+					} else {
+						dup2(pfd[0], STDIN_FILENO);
+						close(pfd[0]);
+						dup2(cfd[1], STDOUT_FILENO);
+						close(cfd[1]);
 					}
 				}
 				if (pthread_mutex_unlock(&listToAddLock) < 0){
 					perror("unlock");
 					exit(EXIT_FAILURE);
 				}
-			} 
-			if (ready){
-				//search(command+7);
-			} else {
-				socket_write(newsock, "Crawling in progress", strlen("Crawling in progress"));
 			}
-			
+			if (ready){
+				printf("/search %s\n", command+7);
+				fflush(stdout);
+				char *answer = inputString(stdin, 10);
+				socket_write(newsock, answer, strlen(answer));
+				free(answer);
+			} else {
+				socket_write(newsock, "Crawling in progress\n", strlen("Crawling in progress\n"));
+			}
 		}
 		else if ( strcmp(command, "SHUTDOWN") == 0 ){
-			printf("command: SHUTDOWN\n");
+			socket_write(newsock, "Server shutting down...\n", strlen("Server shutting down...\n"));
 			free(command);
 			close(newsock);
+			if (ready){
+				printf("/exit\n");
+				fflush(stdout);
+			}
 			break;
 		}
 		else {
-			printf("command: wrong command\n");
+			socket_write(newsock, "Invalid command. Try again.\n", strlen("Invalid command. Try again.\n"));
 		}
 		free(command);
 		close(newsock);
@@ -176,7 +199,7 @@ int main(int argc, char **argv){
 		if (pthread_cancel(threads[i]) != 0){
 			perror("cancel");
 		}
-		printf("cancel thread\n");
+		//printf("Crawler: Cancel thread\n");
 	}
 
 	while (!list_empty(pagesToAdd))

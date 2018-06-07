@@ -36,18 +36,18 @@ int main(int argc, char **argv){
 	start = clock();
 	//nine arguements, format: ./myhttpd -p serving_port -c command_port -t num_of_threads -d root_dir
 	if ( argc != 9 ){
-		printf("Error. Arguement related error.\n");
+		printf("Server: Error. Arguement related error.\n");
 		return -1;
 	}
 
 	//arguements' check
 	if (strcmp(argv[1], "-p") != 0 || strcmp(argv[3], "-c") != 0 || strcmp(argv[5], "-t") != 0 || strcmp(argv[7], "-d") != 0) {
-		printf("Error. Arguement related error.\n");
+		printf("Server: Error. Arguement related error.\n");
 		return -1;
 	}
 
 	if (validate(argv[2]) == -1 || validate(argv[4]) == -1 || validate(argv[6]) == -1) {
-		printf("Error. Arguement related error.\n");
+		printf("Server: Error. Arguement related error.\n");
 		return -1;
 	}
 
@@ -56,7 +56,7 @@ int main(int argc, char **argv){
 	num_of_threads = atoi(argv[6]);
 	root_dir = argv[8];
 
-	printf("%d %d %d Docfile name: %s.\n", serving_port, command_port, num_of_threads, root_dir);
+	printf("Serving Port: %d, Command Port: %d, Number of Threads: %d, Root Directory: %s.\n", serving_port, command_port, num_of_threads, root_dir);
 
 	//shared memory
 	socketQueue = mmap(NULL, sizeof (Queue), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -66,7 +66,7 @@ int main(int argc, char **argv){
 
 	returnValue = fork();
 	if(returnValue == -1){
-		printf("fork failed\n");
+		printf("Server: Fork failed\n");
 		return -13;
 	}
 
@@ -84,32 +84,30 @@ int main(int argc, char **argv){
 		//create socket
 		int sock = socket(AF_INET, SOCK_STREAM, 0);
 		if (sock < 0) {
-			perror("socket");
+			perror("server socket");
 			exit(EXIT_FAILURE);
 		}
 		//bind to the socket
 		if (bind(sock, (struct sockaddr*) &commandReceiver, sizeof(commandReceiver)) < 0) {
-			perror("bind");
+			perror("server bind");
 			exit(EXIT_FAILURE);
 		}
 		//listen to the socket
 		if (listen(sock, 1) < 0) {
-			perror("listen");
+			perror("server listen");
 			exit(EXIT_FAILURE);
 		}
 
 		//accept conection, create new socket
-		struct sockaddr_in client;
-		socklen_t clientlen = sizeof(client);
 
 		while(1){
 
-			int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
+			int newsock = accept(sock, NULL, NULL);
 			if (newsock < 0) {
-				perror("accept");
+				perror("server accept");
 				exit(EXIT_FAILURE);
 			}
-			printf("Accepted connection\n");
+			printf("Server: Accepted connection for command\n");
 
 			char *command = inputStringFd(newsock, 10);
 			if ( strcmp(command, "STATS") == 0 ){
@@ -119,13 +117,13 @@ int main(int argc, char **argv){
 				socket_write(newsock, buf, strlen(buf));
 			}
 			else if ( strcmp(command, "SHUTDOWN") == 0 ){
-				printf("command: SHUTDOWN\n");
+				socket_write(newsock, "Server shutting down...\n", strlen("Server shutting down...\n"));
 				free(command);
 				close(newsock);
 				break;
 			}
 			else {
-				printf("command: wrong command\n");
+				socket_write(newsock, "Invalid command. Try again.\n", strlen("Invalid command. Try again.\n"));
 			}
 			free(command);
 			close(newsock);

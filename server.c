@@ -34,7 +34,7 @@ pthread_t *threads;
 void sig_handler(int signo) {
 
 	if (signo == SIGTERM){
-		printf("--> received SIGTERM\n");
+		printf("Server: Received SIGTERM\n");
 		if (pthread_mutex_lock(&queueLock) < 0){
 			perror("lock");
 			exit(EXIT_FAILURE);
@@ -52,22 +52,11 @@ void sig_handler(int signo) {
 			if (pthread_cancel(threads[i]) != 0){
 				perror("cancel");
 			}
-			printf("cancel thread\n");
+			printf("Server: Cancel thread\n");
 		}
-
-		//for (int i = 0; i < num_of_threads; ++i){
-		//	if (pthread_join(threads[i], NULL) != 0){
-		//		perror("join");
-		//	}
-		//	printf("join thread\n");
-		//}
-
-		/*if (pthread_mutex_destroy(&queueLock) < 0){  
-			perror("destroy");
-			exit(EXIT_FAILURE);
-		}*/
 		
 		close(sock);
+		free(threads);
 		//kill process
 		exit(EXIT_SUCCESS);
 	}
@@ -85,17 +74,17 @@ void serverProc(int serving_port){
 	//create socket
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
-		perror("socket");
+		perror("servering socket");
 		exit(EXIT_FAILURE);
 	}
 	//bind to the socket
 	if (bind(sock, (struct sockaddr*) &server, sizeof(server)) < 0) {
-		perror("bind");
+		perror("serving bind");
 		exit(EXIT_FAILURE);
 	}
 	//listen to the socket
-	if (listen(sock, num_of_threads) < 0) {
-		perror("listen");
+	if (listen(sock, 128) < 0) {
+		perror("serving listen");
 		exit(EXIT_FAILURE);
 	}
 
@@ -107,34 +96,32 @@ void serverProc(int serving_port){
 	}
 	
 	//accept conection, create new socket
-	struct sockaddr_in client;
-	socklen_t clientlen  = sizeof(client);
 
 	while(1){
 		
 		signal(SIGTERM, sig_handler);
 
-		int newsock = accept(sock, (struct sockaddr*) &client, &clientlen);
+		int newsock = accept(sock, NULL, NULL);
 		if (newsock < 0){
 			perror("accept");
 			exit(EXIT_FAILURE);
 		}
-		printf("Accepted connection\n");
+		printf("Server: Accepted connection\n");
 
 		if (pthread_mutex_lock(&queueLock) < 0){
-			perror("lock");
+			perror("server lock");
 			exit(EXIT_FAILURE);
 		}
 		while (Queue_full(socketQueue) == 1){
-			printf(">> Found Buffer Full \n");
+			//printf("Server: Found Buffer Full \n");
 			pthread_cond_wait(&cond_nonfull, &queueLock);
 		}
 		
 		Queue_push(socketQueue, newsock);
-		printf("Pushing: %d\n", newsock);
+		//printf("Pushing: %d\n", newsock);
 
 		if (pthread_mutex_unlock(&queueLock) < 0){
-			perror("lock");
+			perror("server lock");
 			exit(EXIT_FAILURE);
 		}
 		pthread_cond_signal(&cond_nonempty);

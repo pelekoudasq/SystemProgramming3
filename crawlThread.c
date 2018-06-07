@@ -69,7 +69,7 @@ void contentProcessing(char *content, char *fileName){
 			char *link = malloc(sizeof(char)*(len+1));
 			strncpy(link, start, len);
 			link[len] = '\0';
-			printf("%s %d\n", link, len);
+			//printf("%s %d\n", link, len);
 			if (pthread_mutex_lock(&listToAddLock) < 0){
 				perror("lock");
 				exit(EXIT_FAILURE);
@@ -91,11 +91,12 @@ void contentProcessing(char *content, char *fileName){
 }
 
 int readAnswerFromServer(int sock, char *fileName){
+	printf("Crawler: Getting answer from server...\n");
 	char *line = inputStringFd(sock, 15);
 	if ( line == NULL ) return -1;
 	int length = strlen(line);
 	if ( length < strlen("HTTP/1.1 xxx xx") ) {
-		printf("error with length\n");
+		printf("Crawler: Error with length\n");
 		return -1;
 	}
 	//get from line the url name
@@ -113,7 +114,7 @@ int readAnswerFromServer(int sock, char *fileName){
 		consumeLines(sock, 3);
 		char *content = malloc(sizeof(char)*(contentSize+1));
 		if (socket_read(sock, content, contentSize) < 0){
-			printf("Error getting page %d\n", contentSize);
+			printf("Crawler: Error getting page %d\n", contentSize);
 			return -1;
 		}
 		content[contentSize] = '\0';
@@ -135,14 +136,13 @@ int readAnswerFromServer(int sock, char *fileName){
 		free(content);
 		free(lengthLine-16);
 	} else {
-		printf("wrong code\n");
+		printf("Crawler: wrong code\n");
 		return -1;
 	}
 	return 0;
 }
 
 void get(char *page) {
-	puts(page);
 	/* Initiate connection */
 	/* Create socket */
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -153,7 +153,7 @@ void get(char *page) {
 	/* Find server address */
 	struct hostent *rem = gethostbyname(host);
 	if (rem == NULL) {	
-		herror("gethostbyname");
+		perror("gethostbyname");
 		exit(EXIT_FAILURE);
 	}
 
@@ -166,7 +166,7 @@ void get(char *page) {
 		perror("connect");
 		exit(EXIT_FAILURE);
 	}
-	printf("Connecting to %s port %d\n", host, port);
+	//printf("Connecting to %s port %d\n", host, port);
 
 	char msg[10000];
 	sprintf(msg, "GET /%s HTTP/1.1\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\nHost: www.tutorialspoint.com\r\nAccept-Language: en-us\r\nAccept-Encoding: gzip, deflate\r\nConnection: Keep-Alive\r\n", page);
@@ -176,7 +176,7 @@ void get(char *page) {
 		exit(EXIT_FAILURE);
 	}
 	if (readAnswerFromServer(sock, page) < 0){
-		printf("Error reading answer\n");
+		printf("Crawler: Error reading answer\n");
 		exit(EXIT_FAILURE);
 	}
 	close(sock);
@@ -191,12 +191,13 @@ void *threadFun(void *arg){
 			exit(EXIT_FAILURE);
 		}
 		while (list_empty(pagesToAdd)) {
-			printf(">> Found Buffer Empty \n");
+			//printf("Crawler: Found Buffer Empty \n");
 			pthread_cond_wait(&cond_listnonempty, &listToAddLock);
 		}
 		char *page=list_rem(&pagesToAdd);
 		list_add(&pagesAdded, page);
 		workers++;
+		printf("Crawler: Getting page: %s\n", page);
 		if (pthread_mutex_unlock(&listToAddLock) < 0){
 			perror("unlock");
 			exit(EXIT_FAILURE);
