@@ -70,10 +70,10 @@ void freeRes(countResults *root){
 void sig_handler(int signo) {
 
 	if (signo == SIGIO){
-		printf("--> received SIGIO\n");
+		fprintf(stderr, "--> received SIGIO\n");
 		stop = 1;
 	} else if (signo == SIGTERM){
-		printf("--> received SIGTERM\n");
+		fprintf(stderr, "--> received SIGTERM\n");
 		freeTrie(trieRoot);
 		freeWC(wc);
 		free(fifoName);
@@ -113,7 +113,7 @@ void waitForSignal(int fdRead, int fdWrite){
     	for ( i = 0; i < 3; i++) res[i] = 0;
     	wcResults *curWC = wc;
     	while ( curWC != NULL ){
-    		printf("Name: %s, bytes: %d, words: %d, lines: %d\n", curWC->fileName, curWC->bytes, curWC->words, curWC->lines);
+    		fprintf(stderr, "Name: %s, bytes: %d, words: %d, lines: %d\n", curWC->fileName, curWC->bytes, curWC->words, curWC->lines);
     		res[0]+=curWC->bytes;
     		res[1]+=curWC->words;
     		res[2]+=curWC->lines;
@@ -122,7 +122,7 @@ void waitForSignal(int fdRead, int fdWrite){
     	}
     	//send results
     	for ( i = 0; i < 3; i++){
-			printf("--> sending to %d this: %d\n", getppid(), res[i]);
+			fprintf(stderr, "--> sending to %d this: %d\n", getppid(), res[i]);
 			if( write(fdWrite, &(res[i]), sizeof(int)) < 0 ){
 				perror("write path");
 			}
@@ -130,7 +130,7 @@ void waitForSignal(int fdRead, int fdWrite){
     	fprintf(f, "%s : wc : %d : %d : %d\n", buf, res[0], res[1], res[2]);
     } 
     else if ( strcmp(str,"max") == 0 ){
-    	//printf("--> MAXCOUNT\n");
+    	//fprintf(stderr, "--> MAXCOUNT\n");
     	//sleep(1);
     	char keyword[80];
 		int returnValue = read(fdRead, keyword, 80);
@@ -139,10 +139,10 @@ void waitForSignal(int fdRead, int fdWrite){
        		returnValue = read(fdRead, keyword, 80);
     	}
     	fprintf(f, "%s : maxcount : %s", buf, keyword);
-    	//printf("keyword: %s\n", keyword);
+    	//fprintf(stderr, "keyword: %s\n", keyword);
     	plistNode *post = NULL;
     	post = searchWordInTrie(trieRoot, keyword);
-    	//printf("Done with search\n");
+    	//fprintf(stderr, "Done with search\n");
     	countResults *cRes = NULL;
     	cRes = createCountResults(post);
     	/*countResults *curRes = cRes;
@@ -150,12 +150,12 @@ void waitForSignal(int fdRead, int fdWrite){
     		fprintf(f, " : %s", curRes->fileName);
     		curRes = curRes->next;
     	}*/
-    	//printf("Done with results\n");
+    	//fprintf(stderr, "Done with results\n");
     	cRes = maxFinder(cRes);
     	if (cRes != NULL)
     		fprintf(f, " : %s", cRes->fileName);
-    	//printf("Done with sort\n");
-    	//printf("Sending..\n");
+    	//fprintf(stderr, "Done with sort\n");
+    	//fprintf(stderr, "Sending..\n");
     	char *fileName = NULL;
     	int wordFrq = 0;
     	if ( cRes != NULL){
@@ -166,7 +166,7 @@ void waitForSignal(int fdRead, int fdWrite){
     		strcpy(fileName, "nofile");
     	}
     	int length = strlen(fileName);
-    	printf("--> fileName: %s, wordFrq: %d\n", fileName, wordFrq);
+    	fprintf(stderr, "--> fileName: %s, wordFrq: %d\n", fileName, wordFrq);
     	if( write(fdWrite, fileName, length+1) < 0 ){
 			perror("write path");
 		}
@@ -178,7 +178,7 @@ void waitForSignal(int fdRead, int fdWrite){
 		freeRes(cRes);
     }
     else if ( strcmp(str,"min") == 0 ){
-    	//printf("--> MINCOUNT\n");
+    	//fprintf(stderr, "--> MINCOUNT\n");
     	//sleep(1);
     	char keyword[80];
 		int returnValue = read(fdRead, keyword, 80);
@@ -187,10 +187,10 @@ void waitForSignal(int fdRead, int fdWrite){
        		returnValue = read(fdRead, keyword, 80);
     	}
     	fprintf(f, "%s : mincount : %s", buf, keyword);
-    	//printf("keyword: %s\n", keyword);
+    	//fprintf(stderr, "keyword: %s\n", keyword);
     	plistNode *post = NULL;
     	post = searchWordInTrie(trieRoot, keyword);
-    	//printf("Done with search\n");
+    	//fprintf(stderr, "Done with search\n");
     	countResults *cRes = NULL;
     	cRes = createCountResults(post);
     	/*countResults *curRes = cRes;
@@ -198,12 +198,12 @@ void waitForSignal(int fdRead, int fdWrite){
     		fprintf(f, " : %s", curRes->fileName);
     		curRes = curRes->next;
     	}*/
-    	//printf("Done with results\n");
+    	//fprintf(stderr, "Done with results\n");
     	cRes = minFinder(cRes);
     	if (cRes != NULL)
     		fprintf(f, " : %s", cRes->fileName);
-    	//printf("Done with sort\n");
-    	//printf("Sending..\n");
+    	//fprintf(stderr, "Done with sort\n");
+    	//fprintf(stderr, "Sending..\n");
     	char *fileName = NULL;
     	int wordFrq = 0;
     	if ( cRes != NULL){
@@ -214,7 +214,7 @@ void waitForSignal(int fdRead, int fdWrite){
     		strcpy(fileName, "nofile");
     	}
     	int length = strlen(fileName);
-    	printf("--> fileName: %s, wordFrq: %d\n", fileName, wordFrq);
+    	fprintf(stderr, "--> fileName: %s, wordFrq: %d\n", fileName, wordFrq);
     	if( write(fdWrite, fileName, length+1) < 0 ){
 			perror("write path");
 		}
@@ -278,8 +278,10 @@ int worker(int i){
 	free(logfile);
 	free(pid);
 
-	DIR *dir;
-	struct dirent *ent;
+	//DIR *dir;
+	//struct dirent *ent;
+
+
 
   	//get paths
 	while(1){
@@ -290,13 +292,13 @@ int worker(int i){
         	sleep(1);
         	returnValue = read(fdRead, str, 80);
         }
-       	printf("--> pid: %d, %s, %d\n", getpid(), str, (int)(strlen(str)));
+       	fprintf(stderr, "--> pid: %d, %s, %d\n", getpid(), str, (int)(strlen(str)));
 
        	if( strcmp(str,"stop") == 0 ){
        		break;
        	}
 
-       	if ((dir = opendir (str)) != NULL) {
+       	/*if ((dir = opendir (str)) != NULL) {
 			while ((ent = readdir (dir)) != NULL) {
 				if ( strcmp(ent->d_name,".") != 0 && strcmp(ent->d_name,"..") != 0){
 
@@ -316,13 +318,13 @@ int worker(int i){
 					text *newText = addFileToMaps(fileName, &N, &bytes);
 
 					if (newText == NULL){
-						printf("--> Error with file, on to next one\n");
+						fprintf(stderr, "--> Error with file, on to next one\n");
 					} else {
 						//add to trie(or create if trieRoot is NULL)
 						trieRoot = createTrieFromTextMap(newText, N, fileName, trieRoot, &words);
-						printf("WORDS: %d\n", words);
+						fprintf(stderr, "WORDS: %d\n", words);
 						if (trieRoot == NULL){
-							printf("--> Error with trie\n");
+							fprintf(stderr, "--> Error with trie\n");
 							exit(EXIT_FAILURE);
 						}
 					}
@@ -341,7 +343,7 @@ int worker(int i){
 						curWC->next = newWcResultsNode(fileName, bytes, words, N);
 					}
 					freeTexts(newText);
-					printf("********************************************************\n");
+					fprintf(stderr, "********************************************************\n");
 
 				}
 			}
@@ -349,10 +351,10 @@ int worker(int i){
 		} else {
 			perror ("");
 			exit(EXIT_FAILURE);
-		}		
+		}*/		
 	}
 
-	printf("--> got all paths\n");
+	fprintf(stderr, "--> got all paths\n");
 
 	waitForSignal(fdRead, fdWrite);
 

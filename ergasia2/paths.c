@@ -72,7 +72,7 @@ Paths *getFileOfPaths(char* docfile, size_t size, int *N){
 		}
     	fclose(file);
 	}else {
-    	printf("Error. An error occurred while opening the file %s.\n", docfile);
+    	fprintf(stderr, "Error. An error occurred while opening the file %s.\n", docfile);
     	return NULL;
  	}
  	return P;
@@ -90,7 +90,7 @@ void freePaths(Paths *pPath){
 
 void printPaths(Paths *P){
 	while(P!=NULL){
-		printf("<<_%s_>>\n", P->content);
+		fprintf(stderr, "<<_%s_>>\n", P->content);
 		P=P->next;
 	}
 }
