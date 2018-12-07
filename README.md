@@ -1,10 +1,10 @@
-Ioannis Pelekoudas
-AM: 1115201500128
+### Ioannis Pelekoudas
+### AM: 1115201500128
 
-System Programming
-Project 3
+# System Programming
+## Project 3
 
-June 2018
+#### June 2018
 
 
 
@@ -13,8 +13,9 @@ Overview:
 SERVER:
 
 Server(myhttpd.c) kicks off with a command with the following format:
-
+```bash
 ./myhttpd -p serving_port -c command_port -t num_of_threads -d root_dir
+```
 where:
 serving port is the port from where server gets HTTP/1.1 requests,
 command port is the port from where server gets requests like STATS and SHUTDOWN,
@@ -25,13 +26,13 @@ Server "splits up" using fork in order to listen to both serving and command por
 This is the reason why we are using shared memory for the queue. (myhttpd.c: 62)
 
 After the fork, the child process calls the serverProc function(server.c)
->serverProc initializes the queue and creates, binds and starts to listen to the socket with port the serving port.
+serverProc initializes the queue and creates, binds and starts to listen to the socket with port the serving port.
 After that, it creates the serving threads and begins a loop in which it accepts connections and pushes the new sockets into the queue.
 This happens by locking the queue mutex, checking if the queue is not full, pushing, and sending the signal that the queue now is not empty.
 The loop is waiting for a signal, and if it gets a SIGTERM, the process handles it, canceling the threads and freeing all the structures.
->serverThread function/routine that begins for every thread after its initialization, tries to pop from the queue while it is not empty.
+serverThread function/routine that begins for every thread after its initialization, tries to pop from the queue while it is not empty.
 after it gets the socket fd, sends a signal that the queue now is surely not full and begins the request process by calling the getRequest function.
->getRequest this function calls the recv_get function where it reads every line of the GET request and fills up the request structure.
+getRequest this function calls the recv_get function where it reads every line of the GET request and fills up the request structure.
 In this project we only care about the name, so we just consume the other lines.
 Now that getRequest has the name of the page, it tries to access it. Depending on the returns of the access and open syscalls,
 the function fills up the status and message strings. If the file exist, we bring in to the memory and update the server stats.
@@ -47,8 +48,9 @@ If it gets SHUTDOWN, it terminates the child process serverProc, waits for it an
 CRAWLER:
 
 Crawler(mycrawler.c) kicks off with a command with this format:
-
+```bash
 ./mycrawler -h host_or_IP -p port -c command_port -t num_of_threads -d save_dir starting_URL
+```
 where:
 host is the computer where server runs,
 port is the one that server listens to,
@@ -60,14 +62,14 @@ and starting URL is the known to crawler URL and the one that will start the cra
 First, crawler creates the save_dir directorym recursively if there are subfolders included in the given path.
 Then, adds to the list the given starting URL, and creates the threads, with the threadFun as thread routine(crawlThread.c).
 
->threadFun, after checking if it is empty, removes a page from the list pagesToAdd, adds it to the pagesAdded list, adds one to workers
+threadFun, after checking if it is empty, removes a page from the list pagesToAdd, adds it to the pagesAdded list, adds one to workers
 -usefull for the crawler later on- calls the get function, workers minus one, and from the beginning again.
->get function request to connect to the server. If the connection succeeds it constructs the GET HTTP/1.1 request and sends it via the socket to the server.
+get function request to connect to the server. If the connection succeeds it constructs the GET HTTP/1.1 request and sends it via the socket to the server.
 After that, waits for the answer from the server using the function readAnswerFromServer.
->readAnswerFromServer gets the first line from the header sent from the server and examines the code. If it is one of the accepted one, goes ahead
+readAnswerFromServer gets the first line from the header sent from the server and examines the code. If it is one of the accepted one, goes ahead
 and gets the length of the Content from fourth header line. Then, after consuming the rest of the header lines -not needed in this project- it gets the content.
 if the code is not 200 (OK), it prints out the message, else, it processes the page returned using the function contentProcessing.
->contentProcessing in the beginning builds off the correct path of the file that is going to be the page returned from server.
+contentProcessing in the beginning builds off the correct path of the file that is going to be the page returned from server.
 It opens the file, and writes to it the page. After that, for every line in that string checks if it is a link.
 It properly gets the address and, if it is not in the two lists (already added or already in the to add list), adds it to pagesToAdd list.
 After everything is done successfully, thread keeps trying to remove pages from the list.
@@ -90,7 +92,10 @@ It closes all fds, cancels all threads and destroys all structures.
 
 WEBCREATOR:
 
-webcreator.sh bash script gets arguements in this exact way: ./webcreator.sh root_directory text_file w p
+webcreator.sh bash script gets arguements in this exact way:
+```bash
+./webcreator.sh root_directory text_file w p
+```
 where:
 root_directory is the directory where all sites and their pages will be stored after their own creation,
 text_file is a text file from where the creator will get its data,
